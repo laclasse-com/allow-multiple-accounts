@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Allow Multiple Accounts
-Version: 1.1
+Version: 1.5
 Plugin URI: http://coffee2code.com/wp-plugins/allow-multiple-accounts
 Author: Scott Reilly
 Author URI: http://coffee2code.com
@@ -18,7 +18,7 @@ email address can have.
 The settings page for the plugin also provides a table listing all user accounts, grouped by the email address (see
 screenshot).
 
-Compatible with WordPress 2.6+, 2.7+, 2.8+.
+Compatible with WordPress 2.8+, 2.9+.
 
 =>> Read the accompanying readme.txt file for more information.  Also, visit the plugin's homepage
 =>> for more information and the latest updates
@@ -34,7 +34,7 @@ link next to the plugin on the Manage Plugins page) and customize the settings.
 */
 
 /*
-Copyright (c) 2008-2009 by Scott Reilly (aka coffee2code)
+Copyright (c) 2008-2010 by Scott Reilly (aka coffee2code)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
 files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, 
@@ -54,31 +54,42 @@ if ( !class_exists('AllowMultipleAccounts') ) :
 class AllowMultipleAccounts {
 	var $admin_options_name = 'c2c_allow_multiple_accounts';
 	var $nonce_field = 'update-allow_multiple_accounts';
+	var $textdomain = 'allow-multiple-accounts';
 	var $show_admin = true;	// Change this to false if you don't want the plugin's admin page shown.
 	var $config = array();
 	var $options = array(); // Don't use this directly
+	var $plugin_name = '';
+	var $short_name = '';
+	var $plugin_basename = '';
 
 	var $allow_multiple_accounts = false;  // Used internally; not a setting!
 	var $exceeded_limit = false;
+	var $retrieve_password_for = '';
 
 	function AllowMultipleAccounts() {
+		$this->plugin_name = __('Multiple Accounts', $this->textdomain);
+		$this->short_name = __('Multiple Accounts', $this->textdomain);
+		$this->plugin_basename = plugin_basename(__FILE__);
 		$this->config = array(
 			'allow_for_everyone' => array('input' => 'checkbox', 'default' => true,
-					'label' => __('Allow multiple accounts for everyone?', 'allow-multiple-accounts'),
-					'help' => __('If not checked, only the emails listed below can have multiple accounts.', 'allow-multiple-accounts')),
+					'label' => __('Allow multiple accounts for everyone?', $this->textdomain),
+					'help' => __('If not checked, only the emails listed below can have multiple accounts.', $this->textdomain)),
 			'account_limit' => array('input' => 'text', 'default' => '',
-					'label' => __('Account limit', 'allow-multiple-accounts'),
-					'help' => __('The maximum number of accounts that can be associated with a single email address.  Leave blank to indicate no limit.', 'allow-multiple-accounts')),
+					'label' => __('Account limit', $this->textdomain),
+					'help' => __('The maximum number of accounts that can be associated with a single email address.  Leave blank to indicate no limit.', $this->textdomain)),
 			'emails' => array('input' => 'inline_textarea', 'datatype' => 'array', 'default' => '',
 					'input_attributes' => 'style="width:98%;" rows="6"',
-					'label' => __('Multi-account emails', 'allow-multiple-accounts'),
-					'help' => __('If the checkbox above is unchecked, then only the emails listed here will be allowed to have multiple accounts.  Define one per line.', 'allow-multiple-accounts'))
+					'label' => __('Multi-account emails', $this->textdomain),
+					'help' => __('If the checkbox above is unchecked, then only the emails listed here will be allowed to have multiple accounts.  Define one per line.', $this->textdomain))
 		);
 
 		add_action('init', array(&$this, 'load_textdomain'));
+		add_action('activate_' . str_replace(trailingslashit(WP_PLUGIN_DIR), '', __FILE__), array(&$this, 'install'));
 		add_action('admin_menu', array(&$this, 'admin_menu'));
 		add_action('register_post', array(&$this, 'register_post'), 1, 3);
 		add_filter('registration_errors', array(&$this, 'registration_errors'), 1);
+		add_action('retrieve_password', array(&$this, 'retrieve_password'));
+		add_filter('retrieve_password_message', array(&$this, 'retrieve_password_message'));
 		add_action('user_profile_update_errors', array(&$this, 'user_profile_update_errors'), 1, 3);
 	}
 
@@ -88,29 +99,20 @@ class AllowMultipleAccounts {
 	}
 
 	function admin_menu() {
-		static $plugin_basename;
-		if ( $this->show_admin ) {
-			global $wp_version;
-			if ( current_user_can('manage_options') ) {
-				$plugin_basename = plugin_basename(__FILE__); 
-				if ( version_compare( $wp_version, '2.6.999', '>' ) )
-					add_filter( 'plugin_action_links_' . $plugin_basename, array(&$this, 'plugin_action_links') );
-				add_users_page(__('Multiple Accounts', 'allow-multiple-accounts'), __('Multiple Accounts', 'allow-multiple-accounts'), 9, $plugin_basename, array(&$this, 'options_page'));
-			}
+		if ( $this->show_admin && current_user_can('manage_options') ) {
+			add_filter( 'plugin_action_links_' . $this->plugin_basename, array(&$this, 'plugin_action_links') );
+			add_users_page($this->plugin_name, $this->short_name, 'manage_options', $this->plugin_basename, array(&$this, 'options_page'));
 		}
 	}
 
 	function plugin_action_links( $action_links ) {
-		static $plugin_basename;
-		if ( !$plugin_basename ) $plugin_basename = plugin_basename(__FILE__); 
-		$settings_link = '<a href="users.php?page='.$plugin_basename.'">' . __('Settings', 'allow-multiple-accounts') . '</a>';
+		$settings_link = '<a href="users.php?page='.$this->plugin_basename.'">' . __('Settings', $this->textdomain) . '</a>';
 		array_unshift( $action_links, $settings_link );
-
 		return $action_links;
 	}
 
 	function load_textdomain() {
-		load_plugin_textdomain( 'allow-multiple-accounts', false, basename(dirname(__FILE__)) );		
+		load_plugin_textdomain( $this->textdomain, false, basename(dirname(__FILE__)) );
 	}
 
 	function get_options() {
@@ -130,8 +132,6 @@ class AllowMultipleAccounts {
 	}
 
 	function options_page() {
-		static $plugin_basename;
-		if ( !$plugin_basename ) $plugin_basename = plugin_basename(__FILE__); 
 		$options = $this->get_options();
 		// See if user has submitted form
 		if ( isset($_POST['submitted']) ) {
@@ -161,19 +161,19 @@ class AllowMultipleAccounts {
 			}
 			// Remember to put all the other options into the array or they'll get lost!
 			update_option($this->admin_options_name, $options);
-
-			echo "<div id='message' class='updated fade'><p><strong>" . __('Settings saved', 'allow-multiple-accounts') . '</strong></p></div>';
+			$this->options = $options;
+			echo "<div id='message' class='updated fade'><p><strong>" . __('Settings saved.', $this->textdomain) . '</strong></p></div>';
 		}
 
-		$action_url = $_SERVER[PHP_SELF] . '?page=' . $plugin_basename;
-		$logo = plugins_url() . '/' . basename($_GET['page'], '.php') . '/c2c_minilogo.png';
+		$action_url = $_SERVER['PHP_SELF'] . '?page=' . $this->plugin_basename;
+		$logo = plugins_url(basename($_GET['page'], '.php') . '/c2c_minilogo.png');
 
 		echo "<div class='wrap'><div class='icon32' style='width:44px;'><img src='$logo' alt='A plugin by coffee2code' /><br /></div>";
-		echo '<h2>' . __('Allow Multiple Accounts Settings', 'allow-multiple-accounts') . '</h2>';
-		echo '<p>' . __('Allow multiple user accounts to be created from the same email address.', 'allow-multiple-accounts') . '</p>';
-		echo '<p>' . __('By default, WordPress only allows a single user account to be assigned to specific email address.  This plugin removes that restriction.  An admin settings page (under Users &rarr; Multiple Accounts) is also provided to allow only certain email addresses the ability to have multiple accounts.  You may also specify a limit to the number of accounts an email address can have.', 'allow-multiple-accounts') . '</p>';
+		echo '<h2>' . __('Allow Multiple Accounts Settings', $this->textdomain) . '</h2>';
+		echo '<p>' . __('Allow multiple user accounts to be created from the same email address.', $this->textdomain) . '</p>';
+		echo '<p>' . __('By default, WordPress only allows a single user account to be assigned to specific email address.  This plugin removes that restriction.  A setting is also provided to allow only certain email addresses the ability to have multiple accounts.  You may also specify a limit to the number of accounts an email address can have.', $this->textdomain) . '</p>';
 
-		echo '<p><a href="#multiaccount_list">' . __('View a list of user accounts grouped by email address.', 'allow-multiple-accounts') . '</a></p>';
+		echo '<p><a href="#multiaccount_list">' . __('View a list of user accounts grouped by email address.', $this->textdomain) . '</a></p>';
 
 		echo '<form name="allow_multiple_accounts" action="' . $action_url . '" method="post">';
 				wp_nonce_field($this->nonce_field);
@@ -235,7 +235,7 @@ class AllowMultipleAccounts {
 					}
 					echo "</td></tr>";
 				}
-		$txt = __('Save Changes', 'allow-multiple-accounts');
+		$txt = __('Save Changes', $this->textdomain);
 		echo <<<END
 			</tbody></table>
 			<input type="hidden" name="submitted" value="1" />
@@ -272,11 +272,12 @@ END;
 		</style>
 		<div id='c2c' class='wrap'>
 			<div>
-			This plugin brought to you by <a href="http://coffee2code.com" title="coffee2code.com">Scott Reilly, aka coffee2code</a>.
-			<span><a href="http://coffee2code.com/donate" title="Please consider a donation">Did you find this plugin useful?</a></span>
-			</div>
-		</div>
 END;
+		$c2c = '<a href="http://coffee2code.com" title="coffee2code.com">' . __('Scott Reilly, aka coffee2code', $this->textdomain) . '</a>';
+		echo sprintf(__('This plugin brought to you by %s.', $this->textdomain), $c2c);
+		echo '<span><a href="http://coffee2code.com/donate" title="' . esc_attr__('Please consider a donation', $this->textdomain) . '">' .
+		__('Did you find this plugin useful?', $this->textdomain) . '</a></span>';
+		echo "</div></div>";
 	}
 
 	function list_multiple_accounts() {
@@ -300,18 +301,18 @@ END;
 			<div class='wrap'><a name='multiaccount_list'></a>
 				<h2>
 END;
-		echo __('E-mails with Multiple User Accounts', 'allow-multiple-accounts');
+		echo __('E-mails with Multiple User Accounts', $this->textdomain);
 		echo <<<END
 				</h2>
 				<table class="widefat">
 				<thead>
 				<tr class="thead">
 END;
-		echo '<th>' . __('Username', 'allow-multiple-accounts') . '</th>' .
-			 '<th>' . __('Name', 'allow-multiple-accounts') . '</th>' .
-			 '<th>' . __('E-mail', 'allow-multiple-accounts') . '</th>' .
-			 '<th>' . __('Role', 'allow-multiple-accounts') . '</th>' .
-			 '<th class="num">' . __('Posts', 'allow-multiple-accounts') . '</th>';
+		echo '<th>' . __('Username', $this->textdomain) . '</th>' .
+			 '<th>' . __('Name', $this->textdomain) . '</th>' .
+			 '<th>' . __('E-mail', $this->textdomain) . '</th>' .
+			 '<th>' . __('Role', $this->textdomain) . '</th>' .
+			 '<th class="num">' . __('Posts', $this->textdomain) . '</th>';
 		echo <<<END
 				</tr>
 				</thead>
@@ -322,15 +323,14 @@ END;
 			$email_users = $by_email[$email];
 			$count = count($by_email[$email]);
 			echo '<tr class="emailrow"><td colspan="6">';
-			printf(__ngettext('%s &#8212; %d account', '%s &#8212; %d accounts', $count, 'allow-multiple-accounts'), $email, $count);
+			printf(_n('%1$s &#8212; %2$d account', '%1$s &#8212; %2$d accounts', $count, $this->textdomain), $email, $count);
 			echo '</td></tr>';
 			foreach ( $by_email[$email] as $euser ) {
-		        $user_object = new WP_User($euser->ID);
-		        $roles = $user_object->roles;
-		        $role = array_shift($roles);
-
-		        $style = ( ' class="alternate"' == $style ) ? '' : ' class="alternate"';
-		        echo "\n\t" . user_row($user_object, $style, $role);
+				$user_object = new WP_User($euser->ID);
+				$roles = $user_object->roles;
+				$role = array_shift($roles);
+				$style = ( ' class="alternate"' == $style ) ? '' : ' class="alternate"';
+				echo "\n\t" . user_row($user_object, $style, $role);
 			}
 		}
 
@@ -342,16 +342,29 @@ END;
 	}
 
 	function has_exceeded_limit( $email ) {
-		global $wpdb;
 		$has = false;
 		$options = $this->get_options();
 		if ( $options['account_limit'] ) {
 			$limit = (int)$options['account_limit'];
-			$count = $wpdb->get_col($wpdb->prepare("SELECT COUNT(*) AS count FROM $wpdb->users WHERE user_email = %s", $email));
+			$count = $this->count_multiple_accounts($email);
 			if ( $count >= $limit )
 				$has = true;
 		}
 		return $has;
+	}
+
+	function count_multiple_accounts( $email ) {
+		global $wpdb;
+		return $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) AS count FROM $wpdb->users WHERE user_email = %s", $email));
+	}
+
+	function get_users_by_email( $email ) {
+		global $wpdb;
+		return $wpdb->get_results($wpdb->prepare("SELECT * FROM $wpdb->users WHERE user_email = %s", $email));
+	}
+
+	function has_multiple_accounts( $email ) {
+		return $this->count_multiple_accounts($email) > 1 ? true : false;
 	}
 
 	function register_post( $user_login, $user_email, $errors ) {
@@ -367,10 +380,30 @@ END;
 
 	function registration_errors( $errors ) {
 		if ( $this->exceeded_limit )
-			$errors->add('exceeded_limit', __('<strong>ERROR</strong>: Too many accounts are associated with this email, please choose another one.', 'allow-multiple-accounts'));
+			$errors->add('exceeded_limit', __('<strong>ERROR</strong>: Too many accounts are associated with this email, please choose another one.', $this->textdomain));
 		if ( $this->allow_multiple_accounts || $this->exceeded_limit )
 			unset($errors->errors['email_exists']);
 		return $errors;
+	}
+
+	// Roundabout way of determining what user account a password retrieval is being requested for since some of the actions/filters don't specify.
+	function retrieve_password( $user_login ) {
+		$this->retrieve_password_for = $user_login;
+		return $user_login;
+	}
+
+	function retrieve_password_message( $message ) {
+		$user = get_user_by('login', $this->retrieve_password_for);
+		if ( $this->has_multiple_accounts($user->user_email) ) {
+			$message .= "\r\n\r\n";
+			$message .= __('For your information, your e-mail address is also associated with the following accounts:', $this->textdomain) . "\r\n\r\n";
+			foreach ( $this->get_users_by_email($user->user_email) as $user ) {
+				$message .= "\t" . $user->user_login . "\r\n";
+			}
+			$message .= "\r\n";
+			$message .= __('In order to reset the password for any of these (if you aren\'t already successfully in the middle of doing so already), you should specify the login when requesting a password reset rather than using your e-mail.', $this->textdomain) . "\r\n\r\n";
+		}
+		return $message;
 	}
 
 	function user_profile_update_errors( $errors, $update, $user ) {
@@ -382,13 +415,20 @@ END;
 } // end AllowMultipleAccounts
 
 endif; // end if !class_exists()
-if ( class_exists('AllowMultipleAccounts') ) :
-	// Get the ball rolling
-	$allow_multiple_accounts = new AllowMultipleAccounts();
-	// Actions and filters
-	if ( isset($allow_multiple_accounts) ) {
-		register_activation_hook( __FILE__, array(&$allow_multiple_accounts, 'install') );
-	}
-endif;
 
+if ( class_exists('AllowMultipleAccounts') ) {
+	$allow_multiple_accounts = new AllowMultipleAccounts();
+
+	// Functions suitable for use in other themes and plugins
+
+	if ( !function_exists('count_multiple_accounts') ) {
+		function count_multiple_accounts( $email ) { return $GLOBALS['allow_multiple_accounts']->count_multiple_accounts($email); }
+	}
+	if ( !function_exists('get_users_by_email') ) {
+		function get_users_by_email( $email ) { return $GLOBALS['allow_multiple_accounts']->get_users_by_email($email); }
+	}
+	if ( !function_exists('has_multiple_accounts') ) {
+		function has_multiple_accounts( $email ) { return $GLOBALS['allow_multiple_accounts']->has_multiple_accounts($email); }
+	}
+}
 ?>
