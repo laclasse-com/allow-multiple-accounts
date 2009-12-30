@@ -1,11 +1,11 @@
 === Allow Multiple Accounts ===
-Contributors: Scott Reilly
+Contributors: coffee2code
 Donate link: http://coffee2code.com/donate
-Tags: multiple accounts, registration, email, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code
-Requires at least: 2.6
-Tested up to: 2.8.1
-Stable tag: 1.1
-Version: 1.1
+Tags: multiple accounts, registration, email, e-mail, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code
+Requires at least: 2.8
+Tested up to: 2.9.1
+Stable tag: 1.5
+Version: 1.5
 
 Allow multiple user accounts to be created from the same email address.
 
@@ -22,7 +22,7 @@ The settings page for the plugin also provides a table listing all user accounts
 
 == Installation ==
 
-1. Unzip `allow-multiple-accounts-.zip` inside the `/wp-content/plugins/` directory for your site (or install via the built-in WordPress plugin installer)
+1. Unzip `allow-multiple-accounts.zip` inside the `/wp-content/plugins/` directory for your site (or install via the built-in WordPress plugin installer)
 1. Activate the plugin through the 'Plugins' admin menu in WordPress
 1. Optionally go to the Users -> Multiple Accounts admin settings page (which you can also get to via the Settings link next to the plugin on the Manage Plugins page) and configure settings.
 
@@ -42,6 +42,21 @@ Maybe your site is one that doesn't mind if users can sign up for multiple accou
 Yes.  You can specify a limit on how many accounts can be created for an email.  You can also explicitly list the email addresses which are allowed to create multiple accounts (useful for just allowing admins to have multiple accounts).
 
 == Changelog ==
+
+= 1.5 =
+* Fixed bug causing 'Too many accounts...' error to be incorrectly triggered
+* For retrieve password request emails, if the account is one associated with multiple accounts, list those account names in the email for informational purposes
+* Added class functions: count_multiple_emails(), get_users_by_email(), has_multiple_emails()
+* Exposed new class functions for external use via globally defined functions: count_multiple_emails(), get_users_by_email(), has_multiple_emails()
+* Changed invocation of plugin's install function to action hooked in constructor rather than in global space
+* Update object's option buffer after saving changed submitted by user
+* Finalized full support for localization
+* Parameterized textdomain name
+* Used _n() instead of deprecated __ngettext()
+* Supported swappable arguments in translatable string
+* Miscellaneous tweaks to update plugin to my current plugin conventions
+* Removed compatibility with versions of WP older than 2.8
+* Noted compatibility with WP2.9.1
 
 = 1.1 =
 * Added handling for admin creation of users for WP2.8
