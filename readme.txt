@@ -4,8 +4,8 @@ Donate link: http://coffee2code.com/donate
 Tags: multiple accounts, registration, email, e-mail, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code
 Requires at least: 2.8
 Tested up to: 3.0.1
-Stable tag: 2.0
-Version: 2.0
+Stable tag: 2.0.1
+Version: 2.0.1
 
 Allow multiple user accounts to be created from the same email address.
 
@@ -71,15 +71,18 @@ Yes.  You can specify a limit on how many accounts can be created per email addr
 
 == Changelog ==
 
+= 2.0.1 =
+* Update plugin framework to C2C_Plugin_016 (fixes WP 2.9.2 compatibility issues)
+
 = 2.0 =
 * Fix compatibility with MU/Multi-site
 * Fix bug preventing admins from editing the profile of an account
 * Re-implementation by extending C2C_Plugin_011, which among other things adds support for:
-** Reset of options to default values
-** Better sanitization of input values
-** Offload of core/basic functionality to generic plugin framework
-** Additional hooks for various stages/places of plugin operation
-** Easier localization support
+    * Reset of options to default values
+    * Better sanitization of input values
+    * Offload of core/basic functionality to generic plugin framework
+    * Additional hooks for various stages/places of plugin operation
+    * Easier localization support
 * Full localization support
 * Move count_multiple_accounts() to c2c_count_multiple_accounts()
 * Deprecate count_multiple_accounts(), but retain it (for now) for backwards compatibility
@@ -129,6 +132,9 @@ Yes.  You can specify a limit on how many accounts can be created per email addr
 
 
 == Upgrade Notice ==
+
+= 2.0.1 =
+Recommended minor bugfix release.  Updated plugin framework to fix WP 2.9.2 compatibility issue.
 
 = 2.0 =
 Major update! This release fixes WP 3.0 + MU compatibility. Also includes major re-implementation, bug fixes, localization support, deprecation of all existing template tags (they've been renamed), and more.

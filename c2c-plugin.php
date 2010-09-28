@@ -2,7 +2,7 @@
 /**
  * @package C2C_Plugins
  * @author Scott Reilly
- * @version 011
+ * @version 016
  */
 /*
 Basis for other plugins
@@ -32,9 +32,9 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRA
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-if ( !class_exists( 'C2C_Plugin_011' ) ) :
+if ( !class_exists( 'C2C_Plugin_016' ) ) :
 
-class C2C_Plugin_011 {
+class C2C_Plugin_016 {
 	var $plugin_css_version = '006';
 	var $options = array();
 	var $option_names = array();
@@ -52,7 +52,7 @@ class C2C_Plugin_011 {
 	 * @param array $plugin_options (optional) Array specifying further customization of plugin configuration.
 	 * @return void
 	 */
-	function C2C_Plugin_011( $version, $id_base, $author_prefix, $file, $plugin_options = array() ) {
+	function C2C_Plugin_016( $version, $id_base, $author_prefix, $file, $plugin_options = array() ) {
 		global $pagenow;
 		$id_base = sanitize_title( $id_base );
 		if ( !file_exists( $file ) )
@@ -92,7 +92,8 @@ class C2C_Plugin_011 {
 		add_action( 'init', array( &$this, 'init' ) );
 		$plugin_file = implode( '/', array_slice( explode( '/', $this->plugin_basename ), -2 ) );
 		add_action( 'activate_' . $plugin_file, array( &$this, 'install' ) );
-		add_action( 'deactivate_' . $plugin_file, array( &$this, 'uninstall' ) );
+		add_action( 'deactivate_' . $plugin_file, array( &$this, 'deactivate' ) );
+		register_uninstall_hook( $this->plugin_file, array( &$this, 'uninstall' ) );
 
 		add_action( 'admin_init', array( &$this, 'init_options' ) );
 
@@ -120,8 +121,17 @@ class C2C_Plugin_011 {
 	 * @return void
 	 */
 	function uninstall() {
-//		delete_option( $this->admin_options_name );
+		delete_option( $this->admin_options_name );
 	}
+
+	/**
+	 * Handles deactivation tasks
+	 *
+	 * This should be overridden.
+	 *
+	 * @return void
+	 */
+	function deactivate() { }
 
 	/**
 	 * Handles actions to be hooked to 'init' action, such as loading text domain and loading plugin config data array.
@@ -177,8 +187,21 @@ class C2C_Plugin_011 {
 	function init_options() {
 		register_setting( $this->admin_options_name, $this->admin_options_name, array( &$this, 'sanitize_inputs' ) );
 		add_settings_section( 'default', '', array( &$this, 'draw_default_section' ), $this->plugin_file );
+		add_filter( 'whitelist_options', array( &$this, 'whitelist_options' ) );
 		foreach ( $this->get_option_names( false ) as $opt )
 			add_settings_field( $opt, $this->get_option_label( $opt ), array( &$this, 'display_option' ), $this->plugin_file, 'default', $opt );
+	}
+
+	/**
+	 * Whitelist the plugin's option(s)
+	 *
+	 * @param array $options Array of options
+	 * @return array The whitelist-amended $options array
+	 */
+	function whitelist_options( $options ) {
+		$added = array( $this->admin_options_name => array( $this->admin_options_name ) );
+		$options = add_option_whitelist( $added, $options );
+		return $options;
 	}
 
 	/**
@@ -199,12 +222,22 @@ class C2C_Plugin_011 {
 	}
 
 	/**
+	 * Resets plugin options
+	 *
+	 * @return array
+	 */
+	function reset_options() {
+		$options = $this->get_options( false );
+		return $options;
+	}
+
+	/**
 	 * Sanitize user inputs prior to saving
 	 */
 	function sanitize_inputs( $inputs ) {
 		do_action( $this->get_hook( 'before_save_options' ), $this );
 		if ( isset( $_POST['Reset'] ) ) {
-			$options = $this->get_options( false );
+			$options = $this->reset_options();
 			add_settings_error( 'general', 'settings_reset', __( 'Settings reset.', $this->textdomain ), 'updated' );
 		} else {
 			// Start with the existing options, then start overwriting their potential override value. (This prevents
@@ -235,6 +268,7 @@ class C2C_Plugin_011 {
 								if ( !empty( $val ) && ( !is_numeric( $val ) || ( intval( $val ) != round( $val ) ) ) ) {
 									$msg = sprintf( __( 'Expected integer value for: %s', $this->textdomain ), $this->config[$opt]['label'] );
 									$error = true;
+									$val = '';
 								}
 								break;
 							case 'array':
@@ -327,12 +361,16 @@ class C2C_Plugin_011 {
 	/**
 	 * Outputs simple contextual help text, comprising solely of a thickboxed link to the plugin's hosted readme.txt file.
 	 *
+	 * NOTE: If overriding this in a sub-class, before sure to include the
+	 * check at the beginning of the function to ensure it shows up on its
+	 * own settings admin page.
+	 *
 	 * @param string $contextual_help The default contextual help
 	 * @param int $screen_id The screen ID
-	 * @param object $screen The screen object
+	 * @param object $screen The screen object (only supplied in WP 3.0)
 	 * @return void (Text is echoed)
 	 */
-	function contextual_help( $contextual_help, $screen_id, $screen ) {
+	function contextual_help( $contextual_help, $screen_id, $screen = null ) {
 		if ( $screen_id != $this->options_page )
 			return $contextual_help;
 
@@ -438,18 +476,42 @@ CSS;
 	}
 
 	/**
+	 * See if the setting is pertinent to this version of WP
+	 *
+	 * @since 013
+	 *
+	 * @param string $opt The option name
+	 * @return bool If the option is valid for this version of WP
+	 */
+	function is_option_valid( $opt ) {
+		global $wp_version;
+		$valid = true;
+		$ver_operators = array( 'wpgt' => '>', 'wpgte' => '>=', 'wplt' => '<', 'wplte' => '<=' );
+		foreach ( $ver_operators as $ver_check => $ver_op ) {
+			if ( isset( $this->config[$opt][$ver_check] )
+				&& !empty( $this->config[$opt][$ver_check] )
+				&& !version_compare( $wp_version, $this->config[$opt][$ver_check], $ver_op ) ) {
+					$valid = false;
+					break;
+			}
+		}
+		return $valid;
+	}
+
+	/**
 	 * Returns the list of option names.
 	 *
 	 * @param bool $include_non_options (optional) Should non-options be included? Default is false.
 	 * @return array Array of option names.
 	 */
 	function get_option_names( $include_non_options = false ) {
-		if ( !$include_non_options && !empty( $this->option_names ) ) return $this->option_names;
+		if ( !$include_non_options && !empty( $this->option_names ) )
+			return $this->option_names;
 		if ( $include_non_options )
 			return array_keys( $this->config );
 		$this->option_names = array();
 		foreach ( array_keys( $this->config ) as $opt ) {
-			if ( isset( $this->config[$opt]['input'] ) && $this->config[$opt]['input'] != '' && $this->config[$opt]['input'] != 'none' )
+			if ( isset( $this->config[$opt]['input'] ) && $this->config[$opt]['input'] != '' && $this->config[$opt]['input'] != 'none' && $this->is_option_valid( $opt ) )
 				$this->option_names[] = $opt;
 		}
 		return $this->option_names;
@@ -463,16 +525,18 @@ CSS;
 	 * @return array The options array for the plugin (which is also stored in $this->options if !$with_options).
 	 */
 	function get_options( $with_current_values = true ) {
-		if ( $with_current_values && !empty( $this->options ) ) return $this->options;
+		if ( $with_current_values && !empty( $this->options ) )
+			return $this->options;
 		// Derive options from the config
 		$options = array();
-		foreach ( $this->get_option_names() as $opt )
+		$option_names = $this->get_option_names( !$with_current_values );
+		foreach ( $option_names as $opt )
 			$options[$opt] = $this->config[$opt]['default'];
 		if ( !$with_current_values )
 			return $options;
 		$this->options = wp_parse_args( get_option( $this->admin_options_name ), $options );
 		// Un-escape fields
-		foreach ( $this->get_option_names() as $opt ) {
+		foreach ( $option_names as $opt ) {
 			if ( $this->config[$opt]['allow_html'] == true ) {
 				if ( is_array( $this->options[$opt] ) ) {
 					foreach ( $this->options[$opt] as $key => $val ) {
@@ -488,6 +552,25 @@ CSS;
 			}
 		}
 		return apply_filters( $this->get_hook( 'options' ), $this->options );
+	}
+
+	/**
+	 * Gets the name to use for a form's <input type="hidden" name="XXX" value="1" />
+	 *
+	 * @param string $prefix A prefix string, unique to the form
+	 * @return string The name
+	 */
+	function get_form_submit_name( $prefix ) {
+		return $prefix . '_' . $this->u_id_base;
+	}
+
+	/**
+	 * Returns the URL for a plugin's form to use for its action attribute
+	 *
+	 * @return string The action URL
+	 */
+	function form_action_url() {
+		return $_SERVER['PHP_SELF'] . '?page=' . $this->plugin_basename;
 	}
 
 	/**
@@ -517,20 +600,9 @@ CSS;
 	 * @return void
 	 */
 	function display_option( $opt ) {
-		global $wp_version;
-
 		do_action( $this->get_hook( 'pre_display_option' ), $opt );
 
 		$options = $this->get_options();
-
-		// See if the setting is pertinent to this version of WP
-		$ver_operators = array( 'wpgt' => '>', 'wpgte' => '>=', 'wplt' => '<', 'wplte' => '<=' );
-		foreach ( $ver_operators as $ver_check => $ver_op ) {
-			if ( isset( $this->config[$opt][$ver_check] ) && !empty( $this->config[$opt][$ver_check] ) ) {
-				if ( !version_compare( $wp_version, $this->config[$opt][$ver_check], $ver_op ) )
-					return;
-			}
-		}
 
 		foreach ( array( 'datatype', 'input' ) as $attrib )
 			$$attrib = isset( $this->config[$opt][$attrib] ) ? $this->config[$opt][$attrib] : '';

@@ -2,12 +2,12 @@
 /**
  * @package Allow_Multiple_Accounts
  * @author Scott Reilly
- * @version 2.0
+ * @version 2.0.1
  */
 /*
 Plugin Name: Allow Multiple Accounts
-Version: 2.0
-Plugin URI: http://coffee2code.com/wp-plugins/allow-multiple-accounts
+Version: 2.0.1
+Plugin URI: http://coffee2code.com/wp-plugins/allow-multiple-accounts/
 Author: Scott Reilly
 Author URI: http://coffee2code.com
 Text Domain: allow-multiple-accounts
@@ -41,7 +41,7 @@ if ( !class_exists( 'AllowMultipleAccounts' ) ) :
 
 require_once( 'c2c-plugin.php' );
 
-class AllowMultipleAccounts extends C2C_Plugin_011 {
+class AllowMultipleAccounts extends C2C_Plugin_016 {
 
 	var $allow_multiple_accounts = false;  // Used internally; not a setting!
 	var $exceeded_limit = false;
@@ -52,7 +52,7 @@ class AllowMultipleAccounts extends C2C_Plugin_011 {
 	 * Constructor
 	 */
 	function AllowMultipleAccounts() {
-		$this->C2C_Plugin_011( '2.0', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		$this->C2C_Plugin_016( '2.0.1', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
 	}
 
 	/**
