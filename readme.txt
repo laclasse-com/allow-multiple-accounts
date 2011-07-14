@@ -1,13 +1,14 @@
 === Allow Multiple Accounts ===
 Contributors: coffee2code
 Donate link: http://coffee2code.com/donate
-Tags: multiple accounts, registration, email, e-mail, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code
-Requires at least: 2.8
-Tested up to: 2.9.1
-Stable tag: 1.5
-Version: 1.5
+Tags: multiple accounts, registration, email, e-mail, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code, buddypress
+Requires at least: 3.1
+Tested up to: 3.2
+Stable tag: 2.5
+Version: 2.5
 
 Allow multiple user accounts to be created from the same email address.
+
 
 == Description ==
 
@@ -19,17 +20,45 @@ An admin settings page (accessed via Users -> Multiple Accounts or via the Setti
 
 The settings page for the plugin also provides a table listing all user accounts, grouped by the email address (see screenshot).
 
+Links: [Plugin Homepage](http://coffee2code.com/wp-plugins/allow-multiple-accounts/) | [Author Homepage](http://coffee2code.com)
+
 
 == Installation ==
 
 1. Unzip `allow-multiple-accounts.zip` inside the `/wp-content/plugins/` directory for your site (or install via the built-in WordPress plugin installer)
 1. Activate the plugin through the 'Plugins' admin menu in WordPress
-1. Optionally go to the Users -> Multiple Accounts admin settings page (which you can also get to via the Settings link next to the plugin on the Manage Plugins page) and configure settings.
+1. Go to the Users -> Multiple Accounts admin settings page (which you can also get to via the Settings link next to the plugin on the Manage Plugins page) and configure settings.
+
 
 == Screenshots ==
 
 1. A screenshot of the plugin's admin settings page.
 2. A screenshot of a registration attempt failing due to exceeding the limit on the number of allowed multiple accounts.
+
+
+== Template Tags ==
+
+The plugin provides one optional template tag for use in your theme templates.
+
+= Functions =
+
+* `<?php c2c_count_multiple_accounts( $email ); ?>`
+
+Returns a count of the number of users associated with the given email.
+
+* `<?php c2c_get_users_by_email( $email ); ?>`
+
+Returns the users associated with the given email.
+
+* `<?php c2c_has_multiple_accounts( $email ); ?>`
+
+Returns a boolean indicating if the given email is associated with more than one user account.
+
+= Arguments =
+
+* `$email` (string)
+An email address.
+
 
 == Frequently Asked Questions ==
 
@@ -39,9 +68,135 @@ Maybe your site is one that doesn't mind if users can sign up for multiple accou
 
 = Can I limit who can create multiple accounts for an email? =
 
-Yes.  You can specify a limit on how many accounts can be created for an email.  You can also explicitly list the email addresses which are allowed to create multiple accounts (useful for just allowing admins to have multiple accounts).
+Yes.  You can specify a limit on how many accounts can be created per email address.  You can also explicitly list the email addresses which are allowed to create multiple accounts (useful for just allowing admins to have multiple accounts).
+
+= What if I allowed email addresses to create up to 5 accounts and some people did so. Then I lowered the limit to 2. What happens now that some email accounts exceed the current limit? =
+
+Nothing happens. The plugin does not do anything with existing accounts. Those email addresses will not be able to create new accounts because they exceed the current limits.
+
+= Is this BuddyPress compatible? =
+
+Yes, for at least BuddyPress 1.2+ and 1.3+, and perhaps other versions.
+
+
+== Filters ==
+
+The plugin exposes three filters for hooking.  Typically, customizations utilizing these hooks would be put into your active theme's functions.php file, or used by another plugin.
+
+= c2c_count_multiple_accounts (filter) =
+
+The 'c2c_count_multiple_accounts' hook allows you to use an alternative approach to safely invoke `c2c_count_multiple_accounts()` in such a way that if the plugin were deactivated or deleted, then your calls to the function won't cause errors in your site.
+
+Arguments:
+
+* same as for `c2c_count_multiple_accounts()`
+
+Example:
+
+Instead of:
+
+    `<?php echo c2c_count_multiple_accounts( $email ); ?>`
+
+Do:
+
+    `<?php echo apply_filters( 'c2c_count_multiple_accounts', $email ); ?>`
+
+= c2c_get_users_by_email (filter) =
+
+The 'c2c_get_users_by_email' hook allows you to use an alternative approach to safely invoke `c2c_get_users_by_email()` in such a way that if the plugin were deactivated or deleted, then your calls to the function won't cause errors in your site.
+
+Arguments:
+
+* same as for `c2c_get_users_by_email()`
+
+Example:
+
+Instead of:
+
+    `<?php echo c2c_get_users_by_email( $email ); ?>`
+
+Do:
+
+    `<?php echo apply_filters( 'c2c_get_users_by_email', $email ); ?>`
+
+= c2c_has_multiple_accounts (filter) =
+
+The 'c2c_has_multiple_accounts' hook allows you to use an alternative approach to safely invoke `c2c_has_multiple_accounts()` in such a way that if the plugin were deactivated or deleted, then your calls to the function won't cause errors in your site.
+
+Arguments:
+
+* same as for `c2c_has_multiple_accounts()`
+
+Example:
+
+Instead of:
+
+    `<?php echo c2c_has_multiple_accounts( $email ); ?>`
+
+Do:
+
+    `<?php echo apply_filters( 'c2c_has_multiple_accounts', $email ); ?>`
+
 
 == Changelog ==
+
+= 2.5 =
+* Fix user listing error by adapting older user_row() into class function
+* Add support for BuddyPress
+* Add bp_members_validate_user_signup()
+* Fix has_exceeded_limit() to account for the account_limit applying to certain emails and not everyone
+* Fix to properly register activation and uninstall hooks
+* Add filters 'c2c_count_multiple_accounts', 'c2c_get_users_by_email', and 'c2c_has_multiple_accounts' to respond to the function of the same name so that users can use the apply_filters() notation for invoking template tags
+* Use get_users() rather than direct query
+* Remove Posts (which provided count of posts) from multi-account user listing table
+* Update plugin framework to 023
+* Save a static version of itself in class variable $instance
+* Deprecate use of global variable $c2c_allow_multiple_accounts to store instance
+* In global space functions: use new class instance variable to access instance instead of using global
+* Rename class from 'AllowMultipleAccounts' to 'c2c_AllowMultipleAccounts'
+* Add __construct(), activation(), uninstall()
+* Note compatibility through WP 3.2+
+* Drop support for versions of WP older than 3.1
+* Add more FAQ questions
+* Call _deprecated_function() on deprecated functions to generate proper notices/warnings
+* Add filters section to readme.txt and document filters
+* Explicitly declare functions public
+* Minor code formatting changes (spacing)
+* Update copyright date (2011)
+* Add plugin homepage and author links in description in readme.txt
+
+= 2.0.1 =
+* Update plugin framework to C2C_Plugin_016 (fixes WP 2.9.2 compatibility issues)
+
+= 2.0 =
+* Fix compatibility with MU/Multi-site
+* Fix bug preventing admins from editing the profile of an account
+* Re-implementation by extending C2C_Plugin_011, which among other things adds support for:
+    * Reset of options to default values
+    * Better sanitization of input values
+    * Offload of core/basic functionality to generic plugin framework
+    * Additional hooks for various stages/places of plugin operation
+    * Easier localization support
+* Full localization support
+* Move count_multiple_accounts() to c2c_count_multiple_accounts()
+* Deprecate count_multiple_accounts(), but retain it (for now) for backwards compatibility
+* Move get_users_by_email() to c2c_get_users_by_email()
+* Deprecate get_users_by_email(), but retain it (for now) for backwards compatibility
+* Move has_multiple_accounts() to c2c_has_multiple_accounts()
+* Deprecate has_multiple_accounts(), but retain it (for now) for backwards compatibility
+* Rename global instance variable from allow_multiple_accounts to c2c_allow_multiple_accounts
+* Explicitly ensure $allow_multiple_accounts is global when instantiating plugin object
+* Note compatibility with WP 3.0+
+* Add 'Text Domain' header tag
+* Add omitted word in string
+* Minor string variable formatting changes
+* Update .pot file
+* Minor code reformatting (spacing)
+* Add PHPDoc documentation
+* Add package info to top of plugin file
+* Remove docs from top of plugin file (all that and more are in readme.txt)
+* Remove trailing whitespace in header docs
+* Add Template Tags and Upgrade Notice sections to readme.txt
 
 = 1.5 =
 * Fixed bug causing 'Too many accounts...' error to be incorrectly triggered
@@ -55,8 +210,8 @@ Yes.  You can specify a limit on how many accounts can be created for an email. 
 * Used _n() instead of deprecated __ngettext()
 * Supported swappable arguments in translatable string
 * Miscellaneous tweaks to update plugin to my current plugin conventions
-* Removed compatibility with versions of WP older than 2.8
 * Noted compatibility with WP2.9.1
+* Dropped compatibility with versions of WP older than 2.8
 
 = 1.1 =
 * Added handling for admin creation of users for WP2.8
@@ -68,3 +223,15 @@ Yes.  You can specify a limit on how many accounts can be created for an email. 
 
 = 1.0 =
 * Initial release
+
+
+== Upgrade Notice ==
+
+= 2.5 =
+Recommended update.  Fixed outstanding bugs; added BuddyPress compatibility; noted WP 3.2 compatibility; dropped support for versions of WP older than 3.1; updated plugin framework.
+
+= 2.0.1 =
+Recommended minor bugfix release.  Updated plugin framework to fix WP 2.9.2 compatibility issue.
+
+= 2.0 =
+Major update! This release fixes WP 3.0 + MU compatibility. Also includes major re-implementation, bug fixes, localization support, deprecation of all existing template tags (they've been renamed), and more.
