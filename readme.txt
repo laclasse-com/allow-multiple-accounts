@@ -3,7 +3,7 @@ Contributors: coffee2code
 Donate link: http://coffee2code.com/donate
 Tags: multiple accounts, registration, email, e-mail, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code, buddypress
 Requires at least: 3.1
-Tested up to: 3.2
+Tested up to: 3.2.1
 Stable tag: 2.5
 Version: 2.5
 
@@ -19,6 +19,8 @@ By default, WordPress only allows a single user account to be associated with a 
 An admin settings page (accessed via Users -> Multiple Accounts or via the Settings link next to the plugin on the Manage Plugins page) is also provided to allow only certain email addresses the ability to have multiple accounts (such as if you only want admins to have that ability).  You may also specify a limit to the number of accounts an email address can have.
 
 The settings page for the plugin also provides a table listing all user accounts, grouped by the email address (see screenshot).
+
+Compatible with BuddyPress as well.
 
 Links: [Plugin Homepage](http://coffee2code.com/wp-plugins/allow-multiple-accounts/) | [Author Homepage](http://coffee2code.com)
 
