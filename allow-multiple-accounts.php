@@ -2,27 +2,33 @@
 /**
  * @package Allow_Multiple_Accounts
  * @author Scott Reilly
- * @version 2.0.1
+ * @version 2.5
  */
 /*
 Plugin Name: Allow Multiple Accounts
-Version: 2.0.1
+Version: 2.5
 Plugin URI: http://coffee2code.com/wp-plugins/allow-multiple-accounts/
 Author: Scott Reilly
 Author URI: http://coffee2code.com
 Text Domain: allow-multiple-accounts
 Description: Allow multiple user accounts to be created from the same email address.
 
-Compatible with WordPress 2.8+, 2.9+, 3.0+.
+Compatible with WordPress 3.1+, 3.2+ and BuddyPress 1.2+, 1.3+.
 
 =>> Read the accompanying readme.txt file for instructions and documentation.
 =>> Also, visit the plugin's homepage for additional information and updates.
 =>> Or visit: http://wordpress.org/extend/plugins/allow-multiple-accounts/
 
+TODO:
+	* Handle large listings of users. (Separate admin page for listing? Omit accounts tied to email with only one account?)
+	* Update screenshots for WP 3.2
+	* Update .pot
+	* Support different limits for different emails?
+
 */
 
 /*
-Copyright (c) 2008-2010 by Scott Reilly (aka coffee2code)
+Copyright (c) 2008-2011 by Scott Reilly (aka coffee2code)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
@@ -37,22 +43,58 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRA
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-if ( !class_exists( 'AllowMultipleAccounts' ) ) :
+if ( ! class_exists( 'c2c_AllowMultipleAccounts' ) ) :
 
 require_once( 'c2c-plugin.php' );
 
-class AllowMultipleAccounts extends C2C_Plugin_016 {
+class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
 
-	var $allow_multiple_accounts = false;  // Used internally; not a setting!
-	var $exceeded_limit = false;
-	var $retrieve_password_for = '';
-	var $during_user_creation = false; // part of a hack
+	public static $instance;
+
+	protected $allow_multiple_accounts = false;  // Used internally; not a setting!
+	protected $exceeded_limit          = false;
+	protected $retrieve_password_for   = '';
+	public    $during_user_creation    = false; // part of a hack
 
 	/**
 	 * Constructor
 	 */
-	function AllowMultipleAccounts() {
-		$this->C2C_Plugin_016( '2.0.1', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+	public function __construct() {
+		$this->c2c_AllowMultipleAccounts();
+	}
+
+	public function c2c_AllowMultipleAccounts() {
+		// Be a singleton
+		if ( ! is_null( self::$instance ) )
+			return;
+
+		$this->C2C_Plugin_023( '2.5', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		register_activation_hook( __FILE__, array( __CLASS__, 'activation' ) );
+		self::$instance = $this;
+	}
+
+	/**
+	 * Handles activation tasks, such as registering the uninstall hook.
+	 *
+	 * @since 2.5
+	 *
+	 * @return void
+	 */
+	public function activation() {
+		register_uninstall_hook( __FILE__, array( __CLASS__, 'uninstall' ) );
+	}
+
+	/**
+	 * Handles uninstallation tasks, such as deleting plugin options.
+	 *
+	 * This can be overridden.
+	 *
+	 * @since 2.5
+	 *
+	 * @return void
+	 */
+	public function uninstall() {
+		delete_option( 'c2c_allow_multiple_accounts' );
 	}
 
 	/**
@@ -60,8 +102,8 @@ class AllowMultipleAccounts extends C2C_Plugin_016 {
 	 *
 	 * @return void
 	 */
-	function load_config() {
-		$this->name = __( 'Allow Multiple Accounts', $this->textdomain );
+	public function load_config() {
+		$this->name      = __( 'Allow Multiple Accounts', $this->textdomain );
 		$this->menu_name = __( 'Multiple Accounts', $this->textdomain );
 
 		$this->config = array(
@@ -83,15 +125,16 @@ class AllowMultipleAccounts extends C2C_Plugin_016 {
 	 *
 	 * @return void
 	 */
-	function register_filters() {
-		add_action( 'check_passwords', array( &$this, 'hack_check_passwords' ) );
-		add_filter( 'pre_user_display_name', array( &$this, 'hack_pre_user_email' ) );
-		add_filter( 'pre_user_email', array( &$this, 'hack_pre_user_email' ) );
-		add_action( 'register_post', array( &$this, 'register_post' ), 1, 3 );
-		add_filter( 'registration_errors', array( &$this, 'registration_errors' ), 1 );
-		add_action( 'retrieve_password', array( &$this, 'retrieve_password' ) );
-		add_filter( 'retrieve_password_message', array( &$this, 'retrieve_password_message' ) );
+	public function register_filters() {
+		add_action( 'check_passwords',            array( &$this, 'hack_check_passwords' ) );
+		add_filter( 'pre_user_display_name',      array( &$this, 'hack_pre_user_display_name' ) );
+		add_filter( 'pre_user_email',             array( &$this, 'hack_pre_user_email' ) );
+		add_action( 'register_post',              array( &$this, 'register_post' ), 1, 3 );
+		add_filter( 'registration_errors',        array( &$this, 'registration_errors' ), 1 );
+		add_action( 'retrieve_password',          array( &$this, 'retrieve_password' ) );
+		add_filter( 'retrieve_password_message',  array( &$this, 'retrieve_password_message' ) );
 		add_action( 'user_profile_update_errors', array( &$this, 'user_profile_update_errors' ), 1, 3 );
+		add_filter( 'wpmu_validate_user_signup',  array( &$this, 'bp_members_validate_user_signup' ) );
 		add_action( $this->get_hook( 'after_settings_form' ), array( &$this, 'list_multiple_accounts' ) );
 	}
 
@@ -100,7 +143,7 @@ class AllowMultipleAccounts extends C2C_Plugin_016 {
 	 *
 	 * @return void (Text will be echoed.)
 	 */
-	function options_page_description() {
+	public function options_page_description() {
 		$options = $this->get_options();
 		parent::options_page_description( __( 'Allow Multiple Accounts Settings', $this->textdomain ) );
 		echo '<p>' . __( 'Allow multiple user accounts to be created from the same email address.', $this->textdomain ) . '</p>';
@@ -120,7 +163,7 @@ class AllowMultipleAccounts extends C2C_Plugin_016 {
 	 * @param string $display_name Display name for user
 	 * @return string The same value as passed to the function
 	 */
-	function hack_pre_user_display_name( $display_name ) {
+	public function hack_pre_user_display_name( $display_name ) {
 		$this->during_user_creation = false;
 		return $display_name;
 	}
@@ -137,7 +180,7 @@ class AllowMultipleAccounts extends C2C_Plugin_016 {
 	 * @param string $email Email for the user
 	 * @return string The same value as passed to the function
 	 */
-	function hack_pre_user_email( $email ) {
+	public function hack_pre_user_email( $email ) {
 		$this->during_user_creation = true;
 		return $email;
 	}
@@ -154,7 +197,7 @@ class AllowMultipleAccounts extends C2C_Plugin_016 {
 	 * @param string $user_login User login
 	 * @return void
 	 */
-	function hack_check_passwords( $user_login ) {
+	public function hack_check_passwords( $user_login ) {
 		$this->during_user_creation = true;
 	}
 
@@ -163,9 +206,9 @@ class AllowMultipleAccounts extends C2C_Plugin_016 {
 	 *
 	 * @return void (Text is echoed.)
 	 */
-	function list_multiple_accounts() {
+	public function list_multiple_accounts() {
 		global $wpdb;
-		$users = $wpdb->get_results( "SELECT ID, user_email FROM $wpdb->users ORDER BY user_login" );
+		$users = get_users( array( 'fields' => array( 'ID', 'user_email' ) ) );
 		$by_email = array();
 		foreach ( $users as $user )
 			$by_email[$user->user_email][] = $user;
@@ -197,8 +240,9 @@ END;
 		echo '<th>' . __( 'Username', $this->textdomain ) . '</th>' .
 			 '<th>' . __( 'Name', $this->textdomain ) . '</th>' .
 			 '<th>' . __( 'E-mail', $this->textdomain ) . '</th>' .
-			 '<th>' . __( 'Role', $this->textdomain ) . '</th>' .
-			 '<th class="num">' . __( 'Posts', $this->textdomain ) . '</th>';
+			 '<th>' . __( 'Role', $this->textdomain ) . '</th>';
+// .
+//			 '<th class="num">' . __( 'Posts', $this->textdomain ) . '</th>';
 		echo <<<END
 				</tr>
 				</thead>
@@ -217,7 +261,7 @@ END;
 				$roles = $user_object->roles;
 				$role = array_shift( $roles );
 				$style = ( ' class="alternate"' == $style ) ? '' : ' class="alternate"';
-				echo "\n\t" . user_row( $user_object, $style, $role );
+				echo "\n\t" . $this->user_row( $user_object, $style, $role );
 			}
 		}
 
@@ -236,12 +280,17 @@ END;
 	 * @param int $user_id (optional) ID of existing user, if updating a user
 	 * @return boolean True if the email address has exceeded its allowable number of accounts; false otherwise
 	 */
-	function has_exceeded_limit( $email, $user_id = null ) {
+	public function has_exceeded_limit( $email, $user_id = null ) {
 		$has = false;
 		$options = $this->get_options();
 		if ( $options['account_limit'] ) {
-			$limit = (int) $options['account_limit'];
 			$count = $this->count_multiple_accounts( $email, $user_id );
+
+			if ( ! $options['allow_for_everyone'] && ! in_array( $email, $options['emails'] ) )
+				$limit = 1;
+			else
+				$limit = (int) $options['account_limit'];
+
 			if ( $count >= $limit )
 				$has = true;
 		}
@@ -255,7 +304,7 @@ END;
 	 * @param int $user_id (optional) ID of existing user, if updating a user
 	 * @return int The number of users associated with the given email
 	 */
-	function count_multiple_accounts( $email, $user_id =  null ) {
+	public function count_multiple_accounts( $email, $user_id =  null ) {
 		global $wpdb;
 		$sql = "SELECT COUNT(*) AS count FROM $wpdb->users WHERE user_email = %s";
 		if ( $user_id )
@@ -269,9 +318,8 @@ END;
 	 * @param string $email The email account
 	 * @return array All of the users associated with the given email
 	 */
-	function get_users_by_email( $email ) {
-		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $wpdb->users WHERE user_email = %s", $email ) );
+	public function get_users_by_email( $email ) {
+		return get_users( array( 'search' => $email ) );
 	}
 
 	/**
@@ -280,7 +328,7 @@ END;
 	 * @param string $email The email account
 	 * @return bool True if the given email is associated with more than one user account; false otherwise
 	 */
-	function has_multiple_accounts( $email ) {
+	public function has_multiple_accounts( $email ) {
 		return $this->count_multiple_accounts( $email ) > 1 ? true : false;
 	}
 
@@ -294,7 +342,7 @@ END;
 	 * @param int $user_id (optional) ID of existing user, if updating a user
 	 * @return void
 	 */
-	function register_post( $user_login, $user_email, $errors, $user_id = null ) {
+	public function register_post( $user_login, $user_email, $errors, $user_id = null ) {
 		$options = $this->get_options();
 		if ( $errors->get_error_message( 'email_exists' ) &&
 			( $options['allow_for_everyone'] || in_array( $user_email, $options['emails'] ) ) ) {
@@ -311,7 +359,7 @@ END;
 	 * @param WP_Error $errors Error object
 	 * @return WP_Error The potentially modified error object
 	 */
-	function registration_errors( $errors ) {
+	public function registration_errors( $errors ) {
 		if ( $this->exceeded_limit )
 			$errors->add( 'exceeded_limit', __( '<strong>ERROR</strong>: Too many accounts are associated with this email, please choose another one.', $this->textdomain ) );
 		if ( $this->allow_multiple_accounts || $this->exceeded_limit ) {
@@ -327,7 +375,7 @@ END;
 	 * @param string $user_login User login
 	 * @return string The same value as passed to the function
 	 */
-	function retrieve_password( $user_login ) {
+	public function retrieve_password( $user_login ) {
 		$this->retrieve_password_for = $user_login;
 		return $user_login;
 	}
@@ -338,7 +386,7 @@ END;
 	 * @param string $message The original email message
 	 * @return string Potentially modified email message
 	 */
-	function retrieve_password_message( $message ) {
+	public function retrieve_password_message( $message ) {
 		$user = get_user_by( 'login', $this->retrieve_password_for );
 		if ( $this->has_multiple_accounts( $user->user_email ) ) {
 			$message .= "\r\n\r\n";
@@ -359,15 +407,192 @@ END;
 	 * @param boolean $update Is this being invoked due to a user being updated?
 	 * @param WP_User $user User object
 	 */
-	function user_profile_update_errors( $errors, $update, $user ) {
+	public function user_profile_update_errors( $errors, $update, $user ) {
 		$this->during_user_creation = false; // Part of HACK to work around WP3.0.0 bug
 		$user_id = $update ? $user->ID : null;
 		$this->register_post( $user->user_login, $user->user_email, $errors, $user_id );
 		$errors = $this->registration_errors( $errors );
 	}
-} // end AllowMultipleAccounts
 
-$GLOBALS['c2c_allow_multiple_accounts'] = new AllowMultipleAccounts();
+	/**
+	 * Check user_email for exceeding allowed use under BuddyPress
+	 *
+	 * Like WP of yore (pre-3.0), BP allows for all registration errors to be
+	 * intercepted after detection but before handling by WP. That allow this
+	 * function to detect an error raised by due to email_exists() and ignore
+	 * or modify it as appropriate according to this plugin.
+	 *
+	 * Note: This function is hooked against the 'wpmu_validate_user_signup'
+	 * filter because it is consistently present across more BP versions,
+	 * whereas its own 'bp_core_validate_user_signup' is slated to be renamed
+	 * 'bp_members_validate_user_signup' in BP1.3.
+	 *
+	 *
+	 * @since 2.5
+	 *
+	 * @param array $result BP signup validation result array consisting of 'user_name', 'user_email', and 'errors' elements
+	 * @return array The possibly modified results array
+	 */
+	public function bp_members_validate_user_signup( $result ) {
+		if ( $result['errors'] ) {
+			$errors = $result['errors']->get_error_messages( 'user_email' );
+			if ( ! empty( $errors ) ) {
+				$new_errors = array();
+				$bp_msg = __( 'Sorry, that email address is already used!', 'buddypress' );
+				foreach ( $errors as $e ) {
+					if ( $e == $bp_msg ) {
+						if ( $this->has_exceeded_limit( $result['user_email'] ) ) {
+							// Only indicate "Too many accounts" if the account was allowed more than one. Otherwise use BP default.
+							if ( $this->has_multiple_accounts( $result['user_email'] ) )
+								$e = __( 'Too many accounts are associated with this email, please choose another one.', $this->textdomain );
+							else
+								$e = $bp_msg;
+						} else {
+							$e = null;
+						}
+					}
+					if ( $e )
+						$new_errors[] = $e;
+				}
+				if ( ! empty( $new_errors ) )
+					$result['errors']->errors['user_email'] = $new_errors;
+				else
+					unset( $result['errors']->errors['user_email'] );
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Generate HTML for a single row on the users.php admin panel.
+	 *
+	 * Slightly adapted version of function last seen in WP 3.0.6
+	 *
+	 * @since 2.5
+	 * (since WP 2.1)
+	 *
+	 * @param object $user_object
+	 * @param string $style Optional. Attributes added to the TR element.  Must be sanitized.
+	 * @param string $role Key for the $wp_roles array.
+	 * @param int $numposts Optional. Post count to display for this user.  Defaults to zero, as in, a new user has made zero posts.
+	 * @return string
+	 */
+	public function user_row( $user_object, $style = '', $role = '', $numposts = 0 ) {
+		global $wp_roles;
+
+		if ( !( is_object( $user_object) && is_a( $user_object, 'WP_User' ) ) )
+			$user_object = new WP_User( (int) $user_object );
+		$user_object = sanitize_user_object($user_object, 'display');
+		$email = $user_object->user_email;
+		$url = $user_object->user_url;
+		$short_url = str_replace( 'http://', '', $url );
+		$short_url = str_replace( 'www.', '', $short_url );
+		if ('/' == substr( $short_url, -1 ))
+			$short_url = substr( $short_url, 0, -1 );
+		if ( strlen( $short_url ) > 35 )
+			$short_url = substr( $short_url, 0, 32 ).'...';
+		$checkbox = '';
+		// Check if the user for this row is editable
+		if ( current_user_can( 'list_users' ) ) {
+			// Set up the user editing link
+			// TODO: make profile/user-edit determination a separate function
+			if ( get_current_user_id() == $user_object->ID) {
+				$edit_link = 'profile.php';
+			} else {
+				$edit_link = esc_url( add_query_arg( 'wp_http_referer', urlencode( esc_url( stripslashes( $_SERVER['REQUEST_URI'] ) ) ), "user-edit.php?user_id=$user_object->ID" ) );
+			}
+			$edit = "<strong><a href=\"$edit_link\">$user_object->user_login</a></strong><br />";
+
+			// Set up the hover actions for this user
+			$actions = array();
+
+			if ( current_user_can('edit_user',  $user_object->ID) ) {
+				$edit = "<strong><a href=\"$edit_link\">$user_object->user_login</a></strong><br />";
+				$actions['edit'] = '<a href="' . $edit_link . '">' . __('Edit') . '</a>';
+			} else {
+				$edit = "<strong>$user_object->user_login</strong><br />";
+			}
+
+			if ( !is_multisite() && get_current_user_id() != $user_object->ID && current_user_can('delete_user', $user_object->ID) )
+				$actions['delete'] = "<a class='submitdelete' href='" . wp_nonce_url("users.php?action=delete&amp;user=$user_object->ID", 'bulk-users') . "'>" . __('Delete') . "</a>";
+			if ( is_multisite() && get_current_user_id() != $user_object->ID && current_user_can('remove_user', $user_object->ID) )
+				$actions['remove'] = "<a class='submitdelete' href='" . wp_nonce_url("users.php?action=remove&amp;user=$user_object->ID", 'bulk-users') . "'>" . __('Remove') . "</a>";
+			$actions = apply_filters('user_row_actions', $actions, $user_object);
+			$action_count = count($actions);
+			$i = 0;
+			$edit .= '<div class="row-actions">';
+			foreach ( $actions as $action => $link ) {
+				++$i;
+				( $i == $action_count ) ? $sep = '' : $sep = ' | ';
+				$edit .= "<span class='$action'>$link$sep</span>";
+			}
+			$edit .= '</div>';
+
+			// Set up the checkbox (because the user is editable, otherwise its empty)
+			$checkbox = "<input type='checkbox' name='users[]' id='user_{$user_object->ID}' class='$role' value='{$user_object->ID}' />";
+
+		} else {
+			$edit = '<strong>' . $user_object->user_login . '</strong>';
+		}
+		$role_name = isset($wp_roles->role_names[$role]) ? translate_user_role($wp_roles->role_names[$role] ) : __('None');
+		$r = "<tr id='user-$user_object->ID'$style>";
+
+		$columns = array(
+			'cb' => '<input type="checkbox" />',
+			'username' => __('Username'),
+			'name' => __('Name'),
+			'email' => __('E-mail'),
+			'role' => __('Role')
+		);
+
+		$avatar = get_avatar( $user_object->ID, 32 );
+		foreach ( $columns as $column_name => $column_display_name ) {
+			$attributes = "class=\"$column_name column-$column_name\"";
+
+			switch ($column_name) {
+				case 'cb':
+					$r .= "<th scope='row' class='check-column'>$checkbox</th>";
+					break;
+				case 'username':
+					$r .= "<td $attributes>$avatar $edit</td>";
+					break;
+				case 'name':
+					$r .= "<td $attributes>$user_object->first_name $user_object->last_name</td>";
+					break;
+				case 'email':
+					$r .= "<td $attributes><a href='mailto:$email' title='" . sprintf( __('E-mail: %s' ), $email ) . "'>$email</a></td>";
+					break;
+				case 'role':
+					$r .= "<td $attributes>$role_name</td>";
+					break;
+				case 'posts':
+					$attributes = 'class="posts column-posts num"' . $style;
+					$r .= "<td $attributes>";
+					if ( $numposts > 0 ) {
+						$r .= "<a href='edit.php?author=$user_object->ID' title='" . __( 'View posts by this author' ) . "' class='edit'>";
+						$r .= $numposts;
+						$r .= '</a>';
+					} else {
+						$r .= 0;
+					}
+					$r .= "</td>";
+					break;
+				default:
+					$r .= "<td $attributes>";
+					$r .= apply_filters('manage_users_custom_column', '', $column_name, $user_object->ID);
+					$r .= "</td>";
+			}
+		}
+		$r .= '</tr>';
+
+		return $r;
+	}
+
+} // end c2c_AllowMultipleAccounts
+
+// NOTICE: The 'c2c_allow_multiple_accounts' global is deprecated and will be removed in the plugin's version 3.0.
+// Instead, use: c2c_AllowMultipleAccounts::$instance
+$GLOBALS['c2c_allow_multiple_accounts'] = new c2c_AllowMultipleAccounts();
 
 endif; // end if !class_exists()
 
@@ -389,8 +614,11 @@ endif; // end if !class_exists()
 	 * @param string $email The email account
 	 * @return int The number of users associated with the given email
 	 */
-	if ( !function_exists( 'c2c_count_multiple_accounts' ) ) {
-		function c2c_count_multiple_accounts( $email ) { return $GLOBALS['c2c_allow_multiple_accounts']->count_multiple_accounts( $email ); }
+	if ( ! function_exists( 'c2c_count_multiple_accounts' ) ) {
+		function c2c_count_multiple_accounts( $email ) {
+			return c2c_AllowMultipleAccounts::$instance->count_multiple_accounts( $email );
+		}
+		add_action( 'c2c_count_multiple_accounts', 'c2c_count_multiple_accounts' );
 	}
 
 	/**
@@ -401,8 +629,11 @@ endif; // end if !class_exists()
 	 * @param string $email The email account
 	 * @return array All of the users associated with the given email
 	 */
-	if ( !function_exists( 'c2c_get_users_by_email' ) ) {
-		function c2c_get_users_by_email( $email ) { return $GLOBALS['c2c_allow_multiple_accounts']->get_users_by_email( $email ); }
+	if ( ! function_exists( 'c2c_get_users_by_email' ) ) {
+		function c2c_get_users_by_email( $email ) {
+			return c2c_AllowMultipleAccounts::$instance->get_users_by_email( $email );
+		}
+		add_action( 'c2c_get_users_by_email', 'c2c_get_users_by_email' );
 	}
 
 	/**
@@ -413,8 +644,11 @@ endif; // end if !class_exists()
 	 * @param string $email The email account
 	 * @return bool True if the given email is associated with more than one user account; false otherwise
 	 */
-	if ( !function_exists( 'c2c_has_multiple_accounts' ) ) {
-		function c2c_has_multiple_accounts( $email ) { return $GLOBALS['c2c_allow_multiple_accounts']->has_multiple_accounts( $email ); }
+	if ( ! function_exists( 'c2c_has_multiple_accounts' ) ) {
+		function c2c_has_multiple_accounts( $email ) {
+			return c2c_AllowMultipleAccounts::$instance->has_multiple_accounts( $email );
+		}
+		add_action( 'c2c_has_multiple_accounts', 'c2c_has_multiple_accounts' );
 	}
 
 	/**
@@ -431,9 +665,10 @@ endif; // end if !class_exists()
 	 * @param string $email User email
 	 * @return string User associated with the email
 	 */
-	if ( !function_exists( 'get_user_by_email' ) ) {
+	if ( ! function_exists( 'get_user_by_email' ) ) {
 		function get_user_by_email( $email ) {
-			if ( $GLOBALS['c2c_allow_multiple_accounts']->during_user_creation && !$GLOBALS['c2c_allow_multiple_accounts']->has_exceeded_limit( $email ) )
+			$obj = c2c_AllowMultipleAccounts::$instance;
+			if ( $obj->during_user_creation && ! $obj->has_exceeded_limit( $email ) )
 				return false;
 			return get_user_by('email', $email);
 		}
@@ -444,14 +679,26 @@ endif; // end if !class_exists()
 	 * DEPRECATED FUNCTIONS
 	 * *******************
 	 */
-	if ( !function_exists( 'count_multiple_accounts' ) ) {
-		function count_multiple_accounts( $email ) { return c2c_count_multiple_accounts( $email ); }
+	// To be removed in v3.0 of plugin
+	if ( ! function_exists( 'count_multiple_accounts' ) ) {
+		function count_multiple_accounts( $email ) {
+			_deprecated_function( __FUNCTION__, '2.0', 'c2c_count_multiple_accounts' );
+			return c2c_count_multiple_accounts( $email );
+		}
 	}
-	if ( !function_exists( 'get_users_by_email' ) ) {
-		function get_users_by_email( $email ) { return c2c_get_users_by_email( $email ); }
+	// To be removed in v3.0 of plugin
+	if ( ! function_exists( 'get_users_by_email' ) ) {
+		function get_users_by_email( $email ) {
+			_deprecated_function( __FUNCTION__, '2.0', 'c2c_get_users_by_email' );
+			return c2c_get_users_by_email( $email );
+		}
 	}
-	if ( !function_exists( 'has_multiple_accounts' ) ) {
-		function has_multiple_accounts( $email ) { return c2c_has_multiple_accounts( $email ); }
+	// To be removed in v3.0 of plugin
+	if ( ! function_exists( 'has_multiple_accounts' ) ) {
+		function has_multiple_accounts( $email ) {
+			_deprecated_function( __FUNCTION__, '2.0', 'c2c_has_multiple_accounts' );
+			return c2c_has_multiple_accounts( $email );
+		}
 	}
 
 ?>
