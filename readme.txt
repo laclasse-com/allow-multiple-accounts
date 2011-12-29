@@ -1,11 +1,11 @@
 === Allow Multiple Accounts ===
 Contributors: coffee2code
 Donate link: http://coffee2code.com/donate
-Tags: multiple accounts, registration, email, e-mail, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code, buddypress
+Tags: multiple accounts, registration, email, e-mail, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code, multisite, buddypress
 Requires at least: 3.1
-Tested up to: 3.2.1
-Stable tag: 2.5
-Version: 2.5
+Tested up to: 3.3
+Stable tag: 2.6
+Version: 2.6
 
 Allow multiple user accounts to be created from the same email address.
 
@@ -20,16 +20,17 @@ An admin settings page (accessed via Users -> Multiple Accounts or via the Setti
 
 The settings page for the plugin also provides a table listing all user accounts, grouped by the email address (see screenshot).
 
-Compatible with BuddyPress as well.
+Compatible with Multisite and BuddyPress as well.
 
-Links: [Plugin Homepage](http://coffee2code.com/wp-plugins/allow-multiple-accounts/) | [Author Homepage](http://coffee2code.com)
+Links: [Plugin Homepage](http://coffee2code.com/wp-plugins/allow-multiple-accounts/) | [Plugin Directory Page](http://wordpress.org/extend/plugins/allow-multiple-accounts/) | [Author Homepage](http://coffee2code.com)
 
 
 == Installation ==
 
+1. Whether installing or updating, whether this plugin or any other, it is always advisable to back-up your data before starting
 1. Unzip `allow-multiple-accounts.zip` inside the `/wp-content/plugins/` directory for your site (or install via the built-in WordPress plugin installer)
 1. Activate the plugin through the 'Plugins' admin menu in WordPress
-1. Go to the Users -> Multiple Accounts admin settings page (which you can also get to via the Settings link next to the plugin on the Manage Plugins page) and configure settings.
+1. Go to the Users -> Multiple Accounts admin settings page (which you can also get to via the Settings link next to the plugin on the Manage Plugins page) and configure settings. On a Multisite install, go to My Sites -> Network Admin -> Users -> Multiple Accounts.
 
 
 == Screenshots ==
@@ -40,7 +41,7 @@ Links: [Plugin Homepage](http://coffee2code.com/wp-plugins/allow-multiple-accoun
 
 == Template Tags ==
 
-The plugin provides one optional template tag for use in your theme templates.
+The plugin provides three optional template tags for use in your theme templates.
 
 = Functions =
 
@@ -66,19 +67,39 @@ An email address.
 
 = Why would I want to allow multiple accounts to be associated with one email address? =
 
-Maybe your site is one that doesn't mind if users can sign up for multiple accounts from the same email address.  More likely, you as an admin, plugin developer, and/or theme developer would like to be able to create multiple accounts on a blog to test various permissions or just want to test the blog having numerous users and don't want to have to assign unique emails for each account.
+Maybe your site is one that doesn't mind if users can sign up for multiple accounts from the same email address, maybe for different identities.  More likely, you as an admin, plugin developer, and/or theme developer would like to be able to create multiple accounts on a blog to test various permissions or just want to test the blog having numerous users and don't want to have to assign unique email addresses for each account.
 
 = Can I limit who can create multiple accounts for an email? =
 
 Yes.  You can specify a limit on how many accounts can be created per email address.  You can also explicitly list the email addresses which are allowed to create multiple accounts (useful for just allowing admins to have multiple accounts).
 
+= How does the plugin affect the "Lost your password?" feature? =
+
+The clearest method for resetting a forgotten password is to supply the username on the "Lost your password" form when prompted.
+
+If an email address is instead supplied on the form, WordPress will send an email to that address with reset information for the first account found associated with that address.  If multiple accounts are associated with that email address, then the email will include a listing of all associated usernames. In order to reset the password for a specific account, go back to the forgotten password form and supply the desired username, or if the email that was sent happens to be for the account that needs the password reset, follow the instructions and link in the email.    Bear in mind that the password reset email can be safely disregarded if it relates to an account that shouldn't be reset.
+
 = What if I allowed email addresses to create up to 5 accounts and some people did so. Then I lowered the limit to 2. What happens now that some email accounts exceed the current limit? =
 
 Nothing happens. The plugin does not do anything with existing accounts. Those email addresses will not be able to create new accounts because they exceed the current limits.
 
+= Is this Multisite compatible? =
+
+Yes.
+
 = Is this BuddyPress compatible? =
 
 Yes, for at least BuddyPress 1.2+ and 1.3+, and perhaps other versions.
+
+= In Multisite, why do I get this error message when trying to register for another account with an already used email address: "That email address has already been used. Please check your inbox for an activation email. It will become available in a couple of days if you do nothing." =
+
+If you're seeing that error then it means the email address used for the new registration matches one used by an account in the signups table. Basically, an account has been registered with that email address but have not been activated yet. Only one account can be in this registered-but-not-activated state per email address.
+
+Before that email address can be used for another account, you have to activate that pending account, delete the pending account from the signups table, or wait a couple of days until the pending account expires.
+
+= Why do I see this notice in my admin: "NOTE: Allow Multiple Accounts is not able to function as intended because another plugin has overridden the WordPress function `get_user_by()`" =
+
+You are using another plugin that has overridden WordPress's `get_user_by()` function, which this plugin needs to do itself in order to function as intended. (This is necessary due to the lack of any more direct methods within WordPress for achieving its goals.)  You will have to find and disable the other plugin, or disable this plugin.
 
 
 == Filters ==
@@ -141,6 +162,25 @@ Do:
 
 
 == Changelog ==
+
+= 2.6 =
+* Add/fix multisite support
+* Remove get_user_by_email() override function
+* Override get_user_by() to circumvent check for email existence
+* Show admin notice if unable to override get_user_by()
+* Update plugin framework to 033
+* Remove support for 'c2c_allow_multiple_accounts' global
+* Note compatibility through WP 3.3+
+* Change parent constructor invocation
+* Create 'lang' subdirectory and move .pot file into it
+* Regenerate .pot
+* Add more FAQs
+* Minor phpDoc reformatting
+* Add 'Domain Path' directive to top of main plugin file
+* Add link to plugin directory page to readme.txt
+* Tweak installation instructions in readme.txt
+* Update screenshots for WP 3.3
+* Update copyright date (2012)
 
 = 2.5 =
 * Fix user listing error by adapting older user_row() into class function
@@ -228,6 +268,9 @@ Do:
 
 
 == Upgrade Notice ==
+
+= 2.6 =
+Recommended update. Highlights: added/fixed Multisite compatibility; fixed compatibility with WP 3.3+
 
 = 2.5 =
 Recommended update.  Fixed outstanding bugs; added BuddyPress compatibility; noted WP 3.2 compatibility; dropped support for versions of WP older than 3.1; updated plugin framework.

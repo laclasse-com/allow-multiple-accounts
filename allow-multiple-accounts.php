@@ -2,18 +2,19 @@
 /**
  * @package Allow_Multiple_Accounts
  * @author Scott Reilly
- * @version 2.5
+ * @version 2.6
  */
 /*
 Plugin Name: Allow Multiple Accounts
-Version: 2.5
+Version: 2.6
 Plugin URI: http://coffee2code.com/wp-plugins/allow-multiple-accounts/
 Author: Scott Reilly
-Author URI: http://coffee2code.com
+Author URI: http://coffee2code.com/
 Text Domain: allow-multiple-accounts
+Domain Path: /lang/
 Description: Allow multiple user accounts to be created from the same email address.
 
-Compatible with WordPress 3.1+, 3.2+ and BuddyPress 1.2+, 1.3+.
+Compatible with WordPress 3.1+, 3.2+, 3.3+ and BuddyPress 1.2+, 1.3+.
 
 =>> Read the accompanying readme.txt file for instructions and documentation.
 =>> Also, visit the plugin's homepage for additional information and updates.
@@ -21,14 +22,13 @@ Compatible with WordPress 3.1+, 3.2+ and BuddyPress 1.2+, 1.3+.
 
 TODO:
 	* Handle large listings of users. (Separate admin page for listing? Omit accounts tied to email with only one account?)
-	* Update screenshots for WP 3.2
-	* Update .pot
+	* In Multisite, list blog(s) associated with each user?
 	* Support different limits for different emails?
 
 */
 
 /*
-Copyright (c) 2008-2011 by Scott Reilly (aka coffee2code)
+Copyright (c) 2008-2012 by Scott Reilly (aka coffee2code)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
@@ -47,7 +47,7 @@ if ( ! class_exists( 'c2c_AllowMultipleAccounts' ) ) :
 
 require_once( 'c2c-plugin.php' );
 
-class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
+class c2c_AllowMultipleAccounts extends C2C_Plugin_033 {
 
 	public static $instance;
 
@@ -55,6 +55,8 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
 	protected $exceeded_limit          = false;
 	protected $retrieve_password_for   = '';
 	public    $during_user_creation    = false; // part of a hack
+	// Only set to true if the plugin was able to replace WP's version of get_user_by()
+	public    $controls_get_user_by    = false; // part of a hack
 
 	/**
 	 * Constructor
@@ -68,7 +70,7 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
 		if ( ! is_null( self::$instance ) )
 			return;
 
-		$this->C2C_Plugin_023( '2.5', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		parent::__construct( '2.6', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
 		register_activation_hook( __FILE__, array( __CLASS__, 'activation' ) );
 		self::$instance = $this;
 	}
@@ -121,11 +123,16 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
 	}
 
 	/**
-	 * Override the plugin framework's register_filters() to actually actions against filters.
+	 * Override plugin framework's register_filters() to register actions and filters.
 	 *
 	 * @return void
 	 */
 	public function register_filters() {
+		if ( is_multisite() ) {
+			add_action( 'network_admin_menu',     array( &$this, 'admin_menu' ) );
+			remove_action( 'admin_menu',          array( &$this, 'admin_menu' ) );
+		}
+		add_action( 'admin_notices',              array( &$this, 'display_activation_notice' ) );
 		add_action( 'check_passwords',            array( &$this, 'hack_check_passwords' ) );
 		add_filter( 'pre_user_display_name',      array( &$this, 'hack_pre_user_display_name' ) );
 		add_filter( 'pre_user_email',             array( &$this, 'hack_pre_user_email' ) );
@@ -152,11 +159,28 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
 	}
 
 	/**
-	 * This is a HACK because WP 3.0 introduced a change that made it impossible to suppress the unique email check when creating a new user.
+	 * Output activation notice
 	 *
-	 * For the hack, this filter is invoked just after wp_insert_user() checks for the uniqueness of the email address.  What this
-	 * is doing is unsetting the flag by the get_user_by_email() overridden by this plugin, so that when called in any other context than
-	 * wp_insert_user(), it'll actually get the user by email.
+	 * @since 2.6
+	 *
+	 * @return void (Text is echoed.)
+	 */
+	public function display_activation_notice() {
+		if ( ! $this->controls_get_user_by ) {
+			$msg = __( 'NOTE: Allow Multiple Accounts is not able to function as intended because another plugin has overridden the WordPress function <code>get_user_by()</code>.', $this->textdomain );
+			echo "<div id='message' class='error fade'><p>$msg</p></div>";
+		}
+	}
+
+	/**
+	 * This is a HACK because WP 3.0 introduced a change that made it
+	 * impossible to suppress the unique email check when creating a new user.
+	 *
+	 * For the hack, this filter is invoked just after wp_insert_user() checks
+	 * for the uniqueness of the email address.  What this is doing is
+	 * unsetting the flag set by the get_user_by_email() overridden by this
+	 * plugin, so that when called in any other context than wp_insert_user(),
+	 * it'll actually get the user by email.
 	 *
 	 * @since 2.0
 	 *
@@ -169,11 +193,14 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
 	}
 
 	/**
-	 * This is a HACK because WP 3.0 introduced a change that made it impossible to suppress the unique email check when creating a new user.
+	 * This is a HACK because WP 3.0 introduced a change that made it
+	 * impossible to suppress the unique email check when creating a new user.
 	 *
-	 * For the hack, this filter is invoked just before wp_insert_user() checks for the uniqueness of the email address.  What this
-	 * is doing is setting a flag so that the get_user_by_email() overridden by this plugin, when called in the wp_insert_user() context,
-	 * knows to return false, making WP think the email address isn't in use.
+	 * For the hack, this filter is invoked just before wp_insert_user() checks
+	 * for the uniqueness of the email address.  What this is doing is setting a
+	 * flag so that the get_user_by_email() overridden by this plugin, when
+	 * called in the wp_insert_user() context, knows to return false, making WP
+	 * think the email address isn't in use.
 	 *
 	 * @since 2.0
 	 *
@@ -186,11 +213,14 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
 	}
 
 	/**
-	 * This is a HACK because WP 3.0 introduced a change that made it impossible to suppress the unique email check when creating a new user.
+	 * This is a HACK because WP 3.0 introduced a change that made it
+	 * impossible to suppress the unique email check when creating a new user.
 	 *
-	 * For the hack, this filter is invoked just before edit_user() does a bunch of error checks.  What this
-	 * is doing is setting a flag so that the get_user_by_email() overridden by this plugin, when called in the edit_user() context,
-	 * knows to return false, making WP think the email address isn't in use.
+	 * For the hack, this filter is invoked just before edit_user() does a
+	 * bunch of error checks.  What this is doing is setting a flag so that the
+	 * get_user_by_email() overridden by this plugin, when called in the
+	 * edit_user() context, knows to return false, making WP think the email
+	 * address isn't in use.
 	 *
 	 * @since 2.0
 	 *
@@ -202,13 +232,13 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_023 {
 	}
 
 	/**
-	 * Outputs a list of all user email addresses and their associated accounts.
+	 * Outputs list of all user email addresses and their associated accounts.
 	 *
 	 * @return void (Text is echoed.)
 	 */
 	public function list_multiple_accounts() {
 		global $wpdb;
-		$users = get_users( array( 'fields' => array( 'ID', 'user_email' ) ) );
+		$users = get_users( array( 'fields' => array( 'ID', 'user_email' ), 'blog_id' => '' ) );
 		$by_email = array();
 		foreach ( $users as $user )
 			$by_email[$user->user_email][] = $user;
@@ -319,7 +349,7 @@ END;
 	 * @return array All of the users associated with the given email
 	 */
 	public function get_users_by_email( $email ) {
-		return get_users( array( 'search' => $email ) );
+		return get_users( array( 'search' => $email, 'blog_id' => '' ) );
 	}
 
 	/**
@@ -361,7 +391,7 @@ END;
 	 */
 	public function registration_errors( $errors ) {
 		if ( $this->exceeded_limit )
-			$errors->add( 'exceeded_limit', __( '<strong>ERROR</strong>: Too many accounts are associated with this email, please choose another one.', $this->textdomain ) );
+			$errors->add( 'exceeded_limit', __( '<strong>ERROR</strong>: Too many accounts are associated with this e-mail address, please choose another one.', $this->textdomain ) );
 		if ( $this->allow_multiple_accounts || $this->exceeded_limit ) {
 			unset( $errors->errors['email_exists'] );
 			unset( $errors->error_data['email_exists'] );
@@ -482,7 +512,10 @@ END;
 
 		if ( !( is_object( $user_object) && is_a( $user_object, 'WP_User' ) ) )
 			$user_object = new WP_User( (int) $user_object );
-		$user_object = sanitize_user_object($user_object, 'display');
+		if ( property_exists( $user_object, 'filter' ) )
+			$user_object->filter = 'display';
+		else // pre-WP 3.3
+			$user_object = sanitize_user_object($user_object, 'display');
 		$email = $user_object->user_email;
 		$url = $user_object->user_url;
 		$short_url = str_replace( 'http://', '', $url );
@@ -590,9 +623,8 @@ END;
 
 } // end c2c_AllowMultipleAccounts
 
-// NOTICE: The 'c2c_allow_multiple_accounts' global is deprecated and will be removed in the plugin's version 3.0.
-// Instead, use: c2c_AllowMultipleAccounts::$instance
-$GLOBALS['c2c_allow_multiple_accounts'] = new c2c_AllowMultipleAccounts();
+// To access plugin object instance use: c2c_AllowMultipleAccounts::$instance
+new c2c_AllowMultipleAccounts();
 
 endif; // end if !class_exists()
 
@@ -654,23 +686,35 @@ endif; // end if !class_exists()
 	/**
 	 * This is only overridden as part of a HACK solution to a bug in WP 3.0 not allowing suppression of the duplicate email check.
 	 *
-	 * What it does: Replaces WP's get_user_by_email(). If during the user creation process (hackily determined by the plugin's instance)
+	 * What it does: Replaces WP's get_user_by(). If during the user creation process (hackily determined by the plugin's instance)
 	 * AND the email has not exceeded the account limit, then return false.  wp_insert_user() calls this function simply to check if the
 	 * email is already associated with an account.  So in that instance, if we know that's where the request is originating and that the
 	 * email in question is allowed to have multiple accounts, then trick the check into thinking the email isn't in use so that an error
 	 * isn't generated.
 	 *
-	 * @since 2.0
+	 * @since 2.6
+	 *   (based on version from WP 3.3)
 	 *
 	 * @param string $email User email
 	 * @return string User associated with the email
 	 */
-	if ( ! function_exists( 'get_user_by_email' ) ) {
-		function get_user_by_email( $email ) {
+	if ( ! function_exists( 'get_user_by' ) ) {
+		function get_user_by( $field, $value ) {
 			$obj = c2c_AllowMultipleAccounts::$instance;
-			if ( $obj->during_user_creation && ! $obj->has_exceeded_limit( $email ) )
+			$obj->controls_get_user_by = true;
+
+			if ( 'email' == $field && $obj->during_user_creation && ! $obj->has_exceeded_limit( $value ) )
 				return false;
-			return get_user_by('email', $email);
+
+			$userdata = WP_User::get_data_by( $field, $value );
+
+			if ( !$userdata )
+				return false;
+
+			$user = new WP_User;
+			$user->init( $userdata );
+
+			return $user;
 		}
 	}
 
