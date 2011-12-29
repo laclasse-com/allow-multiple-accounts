@@ -2,11 +2,11 @@
 /**
  * @package Allow_Multiple_Accounts
  * @author Scott Reilly
- * @version 2.6
+ * @version 2.6.1
  */
 /*
 Plugin Name: Allow Multiple Accounts
-Version: 2.6
+Version: 2.6.1
 Plugin URI: http://coffee2code.com/wp-plugins/allow-multiple-accounts/
 Author: Scott Reilly
 Author URI: http://coffee2code.com/
@@ -70,7 +70,7 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_033 {
 		if ( ! is_null( self::$instance ) )
 			return;
 
-		parent::__construct( '2.6', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		parent::__construct( '2.6.1', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
 		register_activation_hook( __FILE__, array( __CLASS__, 'activation' ) );
 		self::$instance = $this;
 	}
@@ -686,6 +686,32 @@ endif; // end if !class_exists()
 	/**
 	 * This is only overridden as part of a HACK solution to a bug in WP 3.0 not allowing suppression of the duplicate email check.
 	 *
+	 * NO LONGER NEEDED ONCE SUPPORT FOR VERSIONS OF WP EARLIER THAN 3.3 IS DROPPED
+	 *
+	 * What it does: Replaces WP's get_user_by_email(). If during the user creation process (hackily determined by the plugin's instance)
+	 * AND the email has not exceeded the account limit, then return false.  wp_insert_user() calls this function simply to check if the
+	 * email is already associated with an account.  So in that instance, if we know that's where the request is originating and that the
+	 * email in question is allowed to have multiple accounts, then trick the check into thinking the email isn't in use so that an error
+	 * isn't generated.
+	 *
+	 * @since 2.0
+	 *
+	 * @param string $email User email
+	 * @return string User associated with the email
+	 */
+	if ( version_compare( $GLOBALS['wp_version'], '3.2.99', '<' ) && ! function_exists( 'get_user_by_email' ) ) {
+		function get_user_by_email( $email ) {
+			$obj = c2c_AllowMultipleAccounts::$instance;
+			$obj->controls_get_user_by = true;
+			if ( $obj->during_user_creation && ! $obj->has_exceeded_limit( $email ) )
+				return false;
+			return get_user_by( 'email', $email );
+		}
+	}
+
+	/**
+	 * This is only overridden as part of a HACK solution to a bug in WP 3.0 not allowing suppression of the duplicate email check.
+	 *
 	 * What it does: Replaces WP's get_user_by(). If during the user creation process (hackily determined by the plugin's instance)
 	 * AND the email has not exceeded the account limit, then return false.  wp_insert_user() calls this function simply to check if the
 	 * email is already associated with an account.  So in that instance, if we know that's where the request is originating and that the
@@ -698,7 +724,7 @@ endif; // end if !class_exists()
 	 * @param string $email User email
 	 * @return string User associated with the email
 	 */
-	if ( ! function_exists( 'get_user_by' ) ) {
+	if ( version_compare( $GLOBALS['wp_version'], '3.2.99', '>' ) &&! function_exists( 'get_user_by' ) ) {
 		function get_user_by( $field, $value ) {
 			$obj = c2c_AllowMultipleAccounts::$instance;
 			$obj->controls_get_user_by = true;

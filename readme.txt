@@ -4,8 +4,8 @@ Donate link: http://coffee2code.com/donate
 Tags: multiple accounts, registration, email, e-mail, signup, account, user, users, restrictions, login, admin, debug, test, coffee2code, multisite, buddypress
 Requires at least: 3.1
 Tested up to: 3.3
-Stable tag: 2.6
-Version: 2.6
+Stable tag: 2.6.1
+Version: 2.6.1
 
 Allow multiple user accounts to be created from the same email address.
 
@@ -163,6 +163,9 @@ Do:
 
 == Changelog ==
 
+= 2.6.1 =
+* Fix for WP 3.2.x (need to override get_user_by_email() again instead of get_user_by() - but just for WP < 3.3)
+
 = 2.6 =
 * Add/fix multisite support
 * Remove get_user_by_email() override function
@@ -268,6 +271,9 @@ Do:
 
 
 == Upgrade Notice ==
+
+= 2.6.1 =
+Bugfix release for users running WP 3.1.x or 3.2.x.
 
 = 2.6 =
 Recommended update. Highlights: added/fixed Multisite compatibility; fixed compatibility with WP 3.3+
