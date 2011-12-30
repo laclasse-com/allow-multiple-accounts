@@ -2,11 +2,11 @@
 /**
  * @package Allow_Multiple_Accounts
  * @author Scott Reilly
- * @version 2.6.1
+ * @version 2.6.2
  */
 /*
 Plugin Name: Allow Multiple Accounts
-Version: 2.6.1
+Version: 2.6.2
 Plugin URI: http://coffee2code.com/wp-plugins/allow-multiple-accounts/
 Author: Scott Reilly
 Author URI: http://coffee2code.com/
@@ -55,8 +55,9 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_033 {
 	protected $exceeded_limit          = false;
 	protected $retrieve_password_for   = '';
 	public    $during_user_creation    = false; // part of a hack
+
 	// Only set to true if the plugin was able to replace WP's version of get_user_by()
-	public    $controls_get_user_by    = false; // part of a hack
+	public static $controls_get_user_by = false; // part of a hack
 
 	/**
 	 * Constructor
@@ -70,7 +71,7 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_033 {
 		if ( ! is_null( self::$instance ) )
 			return;
 
-		parent::__construct( '2.6.1', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		parent::__construct( '2.6.2', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
 		register_activation_hook( __FILE__, array( __CLASS__, 'activation' ) );
 		self::$instance = $this;
 	}
@@ -166,9 +167,10 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_033 {
 	 * @return void (Text is echoed.)
 	 */
 	public function display_activation_notice() {
-		if ( ! $this->controls_get_user_by ) {
+		if ( ! self::$controls_get_user_by ) {
 			$msg = __( 'NOTE: Allow Multiple Accounts is not able to function as intended because another plugin has overridden the WordPress function <code>get_user_by()</code>.', $this->textdomain );
 			echo "<div id='message' class='error fade'><p>$msg</p></div>";
+//			add_settings_error( 'general', 'allow_multiple_accounts_unable_to_override_get_user_by', $msg, 'error' );
 		}
 	}
 
@@ -699,10 +701,10 @@ endif; // end if !class_exists()
 	 * @param string $email User email
 	 * @return string User associated with the email
 	 */
-	if ( version_compare( $GLOBALS['wp_version'], '3.2.99', '<' ) && ! function_exists( 'get_user_by_email' ) ) {
+	if ( version_compare( $GLOBALS['wp_version'], '3.3', '<' ) && ! function_exists( 'get_user_by_email' ) ) {
+		c2c_AllowMultipleAccounts::$controls_get_user_by = true;
 		function get_user_by_email( $email ) {
 			$obj = c2c_AllowMultipleAccounts::$instance;
-			$obj->controls_get_user_by = true;
 			if ( $obj->during_user_creation && ! $obj->has_exceeded_limit( $email ) )
 				return false;
 			return get_user_by( 'email', $email );
@@ -725,9 +727,9 @@ endif; // end if !class_exists()
 	 * @return string User associated with the email
 	 */
 	if ( version_compare( $GLOBALS['wp_version'], '3.2.99', '>' ) &&! function_exists( 'get_user_by' ) ) {
+		c2c_AllowMultipleAccounts::$controls_get_user_by = true;
 		function get_user_by( $field, $value ) {
 			$obj = c2c_AllowMultipleAccounts::$instance;
-			$obj->controls_get_user_by = true;
 
 			if ( 'email' == $field && $obj->during_user_creation && ! $obj->has_exceeded_limit( $value ) )
 				return false;
