@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Allow Multiple Accounts
- * Version:     3.0
+ * Version:     3.0.1
  * Plugin URI:  http://coffee2code.com/wp-plugins/allow-multiple-accounts/
  * Author:      Scott Reilly
  * Author URI:  http://coffee2code.com/
@@ -19,7 +19,7 @@
  *
  * @package Allow_Multiple_Accounts
  * @author  Scott Reilly
- * @version 3.0
+ * @version 3.0.1
  */
 
 /*
@@ -64,6 +64,7 @@
 
 /*
  * TODO:
+ * - Add caching, or at least memoize the count query
  * - Add more unit tests (as always)
  * - Handle large listings of users. (Separate admin page for listing? Omit accounts tied to email with only one account?)
  * - In Multisite, list blog(s) associated with each user?
@@ -133,7 +134,7 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_039 {
 	 * Constructor.
 	 */
 	protected function __construct() {
-		parent::__construct( '3.0', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		parent::__construct( '3.0.1', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
 		register_activation_hook( __FILE__, array( __CLASS__, 'activation' ) );
 
 		return self::$instance = $this;
@@ -508,14 +509,54 @@ END;
 	public function count_multiple_accounts( $email, $user_id =  null ) {
 		global $wpdb;
 
-		$sql = "SELECT COUNT(*) AS count FROM $wpdb->users WHERE user_email = %s";
-		if ( $user_id ) {
-			$sql .= ' AND ID != %d';
+		if ( $user_id && is_object( $user_id ) ) {
+			$user_id = $user_id->ID;
 		}
-		$count = (int) $wpdb->get_var( $wpdb->prepare( $sql, $email, $user_id ) );
+
+		/* TODO: Caching?
+		if ( $user_id ) {
+			$cache_key .= ':' . $user_id;
+		}
+		$cache_key = 'email_count:' . $email;
+		$cache_key = $this->cache_prefix( $cache_key );
+		*/
+
+		//$count = ( $this->disable_cache ) ? false : wp_cache_get( $cache_key, 'c2c_allow_multiple_accounts' );
+		//if ( false === $count ) {
+			$sql = "SELECT COUNT(*) AS count FROM $wpdb->users WHERE user_email = %s";
+			if ( $user_id ) {
+				$sql .= ' AND ID != %d';
+			}
+			$count = (int) $wpdb->get_var( $wpdb->prepare( $sql, $email, $user_id ) );
+		//	if ( ! $this->disable_cache ) {
+		//		wp_cache_add( $cache_key, $count, 'c2c_allow_multiple_accounts', HOUR_IN_SECONDS );
+		//	}
+		//}
 
 		return $count;
 	}
+
+	/**
+	 * Prefix cache key with unique value so a cache group flush can be simulated.
+	 *
+	 * @since 3.0
+	 *
+	 * @param string $cache_key The cache key to prefix.
+	 * @return string
+	 */
+/*
+	protected function cache_prefix( $cache_key ) {
+		$key = wp_cache_get( 'c2c_ama_prefix' );
+
+		// if not set, initialize it
+		if ( false === $key ) {
+			$key = 1;
+			wp_cache_set( 'c2c_ama_prefix', $key );
+		}
+
+		return "ama{$key}:{$cache_key}";
+	}
+*/
 
 	/**
 	 * Returns the users associated with the given email address.

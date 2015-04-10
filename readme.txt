@@ -6,8 +6,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.6
 Tested up to: 4.1
-Stable tag: 3.0
-Version: 3.0
+Stable tag: 3.0.1
 
 Allow multiple user accounts to be created, registered, and updated having the same email address.
 
@@ -165,6 +164,9 @@ Do:
 
 
 == Changelog ==
+
+= 3.0.1 (2015-04-10) =
+* Bugfix: add omitted code to `count_multiple_accounts()` to account for $user_id arg potentially being an object
 
 = 3.0 (2015-03-26) =
 * Reimplement necessary workaround to WP's shortcoming in facilitating repeated use of email addresses
@@ -328,6 +330,9 @@ Do:
 
 
 == Upgrade Notice ==
+
+= 3.0.1 =
+Recommended bugfix release: fixes broken check for multiple accounts under certain situations
 
 = 3.0 =
 Recommended major update: Many improvements and some fixes; added unit tests; updated plugin framework; removed long deprecated functions; compatibility now WP 3.6-4.1+
