@@ -5,8 +5,8 @@ Tags: multiple accounts, registration, email, signup, account, user, users, logi
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.6
-Tested up to: 4.1
-Stable tag: 3.0.1
+Tested up to: 4.2
+Stable tag: 3.0.2
 
 Allow multiple user accounts to be created, registered, and updated having the same email address.
 
@@ -164,6 +164,9 @@ Do:
 
 
 == Changelog ==
+
+= 3.0.2 (2015-04-16) =
+* Bugfix: compatibility fix for versions of WP older than 4.1; `$error->remove()` was introduced in 4.1
 
 = 3.0.1 (2015-04-10) =
 * Bugfix: add omitted code to `count_multiple_accounts()` to account for $user_id arg potentially being an object
@@ -330,6 +333,9 @@ Do:
 
 
 == Upgrade Notice ==
+
+= 3.0.2 =
+Recommended bugfix release: fixes compatibility for versions of WordPress older than 4.1
 
 = 3.0.1 =
 Recommended bugfix release: fixes broken check for multiple accounts under certain situations

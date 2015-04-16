@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Allow Multiple Accounts
- * Version:     3.0.1
+ * Version:     3.0.2
  * Plugin URI:  http://coffee2code.com/wp-plugins/allow-multiple-accounts/
  * Author:      Scott Reilly
  * Author URI:  http://coffee2code.com/
@@ -11,7 +11,7 @@
  * License URI: http://www.gnu.org/licenses/gpl-2.0.html
  * Description: Allow multiple user accounts to be created, registered, and updated having the same email address.
  *
- * Compatible with WordPress 3.6 through 4.1+.
+ * Compatible with WordPress 3.6 through 4.2+.
  *
  * =>> Read the accompanying readme.txt file for instructions and documentation.
  * =>> Also, visit the plugin's homepage for additional information and updates.
@@ -19,7 +19,7 @@
  *
  * @package Allow_Multiple_Accounts
  * @author  Scott Reilly
- * @version 3.0.1
+ * @version 3.0.2
  */
 
 /*
@@ -134,7 +134,7 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_039 {
 	 * Constructor.
 	 */
 	protected function __construct() {
-		parent::__construct( '3.0.1', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		parent::__construct( '3.0.2', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
 		register_activation_hook( __FILE__, array( __CLASS__, 'activation' ) );
 
 		return self::$instance = $this;
@@ -513,50 +513,14 @@ END;
 			$user_id = $user_id->ID;
 		}
 
-		/* TODO: Caching?
+		$sql = "SELECT COUNT(*) AS count FROM $wpdb->users WHERE user_email = %s";
 		if ( $user_id ) {
-			$cache_key .= ':' . $user_id;
+			$sql .= ' AND ID != %d';
 		}
-		$cache_key = 'email_count:' . $email;
-		$cache_key = $this->cache_prefix( $cache_key );
-		*/
-
-		//$count = ( $this->disable_cache ) ? false : wp_cache_get( $cache_key, 'c2c_allow_multiple_accounts' );
-		//if ( false === $count ) {
-			$sql = "SELECT COUNT(*) AS count FROM $wpdb->users WHERE user_email = %s";
-			if ( $user_id ) {
-				$sql .= ' AND ID != %d';
-			}
-			$count = (int) $wpdb->get_var( $wpdb->prepare( $sql, $email, $user_id ) );
-		//	if ( ! $this->disable_cache ) {
-		//		wp_cache_add( $cache_key, $count, 'c2c_allow_multiple_accounts', HOUR_IN_SECONDS );
-		//	}
-		//}
+		$count = (int) $wpdb->get_var( $wpdb->prepare( $sql, $email, $user_id ) );
 
 		return $count;
 	}
-
-	/**
-	 * Prefix cache key with unique value so a cache group flush can be simulated.
-	 *
-	 * @since 3.0
-	 *
-	 * @param string $cache_key The cache key to prefix.
-	 * @return string
-	 */
-/*
-	protected function cache_prefix( $cache_key ) {
-		$key = wp_cache_get( 'c2c_ama_prefix' );
-
-		// if not set, initialize it
-		if ( false === $key ) {
-			$key = 1;
-			wp_cache_set( 'c2c_ama_prefix', $key );
-		}
-
-		return "ama{$key}:{$cache_key}";
-	}
-*/
 
 	/**
 	 * Returns the users associated with the given email address.
@@ -616,7 +580,12 @@ END;
 		}
 
 		if ( $this->allow_multiple_accounts || $this->exceeded_limit ) {
-			$errors->remove( 'email_exists' );
+			if ( method_exists( $errors, 'remove' ) ) {
+				$errors->remove( 'email_exists' );
+			} else { // Pre-WP4.1 compatibility
+				unset( $errors->errors['email_exists'] );
+				unset( $errors->error_data['email_exists'] );
+			}
 		}
 
 		return $errors;
