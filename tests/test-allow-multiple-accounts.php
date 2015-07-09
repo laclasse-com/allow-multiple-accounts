@@ -60,7 +60,7 @@ class Allow_Multiple_Accounts_Test extends WP_UnitTestCase {
 	}
 
 	function test_version() {
-		$this->assertEquals( '3.0.2', c2c_AllowMultipleAccounts::get_instance()->version() );
+		$this->assertEquals( '3.0.3', c2c_AllowMultipleAccounts::get_instance()->version() );
 	}
 
 	function test_instance_object_is_returned() {

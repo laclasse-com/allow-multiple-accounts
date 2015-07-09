@@ -6,7 +6,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.6
 Tested up to: 4.2
-Stable tag: 3.0.2
+Stable tag: 3.0.3
 
 Allow multiple user accounts to be created, registered, and updated having the same email address.
 
@@ -164,6 +164,11 @@ Do:
 
 
 == Changelog ==
+
+= 3.0.3 (2015-07-09) =
+* Bugfix: Hook 'profile_update' and 'user_register' at higher priority to avoid conflicting with other plugins (e.g. MailPoet, MailPress)
+* Update: Hook 'pre_user_email' and 'pre_user_login' at lower priority to avoid potentially conflicting with other plugins
+* Update: Remap user email more precisely using user ID instead of email (though no problems noted with the old approach)
 
 = 3.0.2 (2015-04-16) =
 * Bugfix: compatibility fix for versions of WP older than 4.1; `$error->remove()` was introduced in 4.1
@@ -333,6 +338,9 @@ Do:
 
 
 == Upgrade Notice ==
+
+= 3.0.3 =
+Recommended bugfix release: fixes compatibility with some other plugins (generally newsletter plugins) that hooked some of the same actions
 
 = 3.0.2 =
 Recommended bugfix release: fixes compatibility for versions of WordPress older than 4.1

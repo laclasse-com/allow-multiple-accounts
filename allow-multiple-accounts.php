@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Allow Multiple Accounts
- * Version:     3.0.2
+ * Version:     3.0.3
  * Plugin URI:  http://coffee2code.com/wp-plugins/allow-multiple-accounts/
  * Author:      Scott Reilly
  * Author URI:  http://coffee2code.com/
@@ -19,7 +19,7 @@
  *
  * @package Allow_Multiple_Accounts
  * @author  Scott Reilly
- * @version 3.0.2
+ * @version 3.0.3
  */
 
 /*
@@ -134,7 +134,7 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_039 {
 	 * Constructor.
 	 */
 	protected function __construct() {
-		parent::__construct( '3.0.2', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		parent::__construct( '3.0.3', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
 		register_activation_hook( __FILE__, array( __CLASS__, 'activation' ) );
 
 		return self::$instance = $this;
@@ -206,10 +206,10 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_039 {
 		add_filter( 'wpmu_validate_user_signup',  array( $this, 'bp_members_validate_user_signup' ) );
 
 		// Hacks due to unfortunate changes made in WP 3.0 (and still present in WP 4.1).
-		add_filter( 'pre_user_email',             array( $this, 'hack_pre_user_email' ), 20 );
-		add_filter( 'pre_user_login',             array( $this, 'hack_pre_user_login' ), 20 );
-		add_action( 'profile_update',             array( $this, 'hack_restore_remapped_email_address' ), 1 );
-		add_action( 'user_register',              array( $this, 'hack_restore_remapped_email_address' ), 1 );
+		add_filter( 'pre_user_email',             array( $this, 'hack_pre_user_email' ), 100 );
+		add_filter( 'pre_user_login',             array( $this, 'hack_pre_user_login' ), 100 );
+		add_action( 'profile_update',             array( $this, 'hack_restore_remapped_email_address' ), 0 );
+		add_action( 'user_register',              array( $this, 'hack_restore_remapped_email_address' ), 0 );
 
 		add_action( $this->get_hook( 'after_settings_form' ), array( $this, 'list_multiple_accounts' ) );
 	}
@@ -360,7 +360,7 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_039 {
 			$wpdb->update(
 				$wpdb->users,
 				array( 'user_email' => $this->hack_remapped_emails[ $email ] ),
-				array( 'user_email' => $email )
+				array( 'ID' => $user_id )
 			);
 
 			unset( $this->hack_remapped_emails[ $email ] );
