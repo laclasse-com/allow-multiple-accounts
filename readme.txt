@@ -6,7 +6,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.6
 Tested up to: 4.2
-Stable tag: 3.0.3
+Stable tag: 3.0.4
 
 Allow multiple user accounts to be created, registered, and updated having the same email address.
 
@@ -165,6 +165,9 @@ Do:
 
 == Changelog ==
 
+= 3.0.4 (2015-07-14) =
+* Change: Don't attempt to remap (even if only briefly) the email address for user updates when the email address hasn't been changed
+
 = 3.0.3 (2015-07-09) =
 * Bugfix: Hook 'profile_update' and 'user_register' at higher priority to avoid conflicting with other plugins (e.g. MailPoet, MailPress)
 * Update: Hook 'pre_user_email' and 'pre_user_login' at lower priority to avoid potentially conflicting with other plugins
@@ -172,6 +175,7 @@ Do:
 
 = 3.0.2 (2015-04-16) =
 * Bugfix: compatibility fix for versions of WP older than 4.1; `$error->remove()` was introduced in 4.1
+* Update: Note compatibility through WP 4.2+
 
 = 3.0.1 (2015-04-10) =
 * Bugfix: add omitted code to `count_multiple_accounts()` to account for $user_id arg potentially being an object
@@ -339,14 +343,17 @@ Do:
 
 == Upgrade Notice ==
 
+= 3.0.4 =
+Minor update: Change to prevent the plugin from doing anything for user updates when the email address doesn't change (reduces processing and potential for conflicts)
+
 = 3.0.3 =
-Recommended bugfix release: fixes compatibility with some other plugins (generally newsletter plugins) that hooked some of the same actions
+Recommended bugfix release: Fixes compatibility with some other plugins (generally newsletter plugins) that hooked some of the same actions
 
 = 3.0.2 =
-Recommended bugfix release: fixes compatibility for versions of WordPress older than 4.1
+Recommended bugfix release: Fixes compatibility for versions of WordPress older than 4.1; noted compatibility through WP 4.2
 
 = 3.0.1 =
-Recommended bugfix release: fixes broken check for multiple accounts under certain situations
+Recommended bugfix release: Fixes broken check for multiple accounts under certain situations
 
 = 3.0 =
 Recommended major update: Many improvements and some fixes; added unit tests; updated plugin framework; removed long deprecated functions; compatibility now WP 3.6-4.1+
