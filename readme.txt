@@ -5,8 +5,8 @@ Tags: multiple accounts, registration, email, signup, account, user, users, logi
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.6
-Tested up to: 4.2
-Stable tag: 3.0.4
+Tested up to: 5.1.1
+Stable tag: 3.0.5
 
 Allow multiple user accounts to be created, registered, and updated having the same email address.
 
@@ -164,6 +164,9 @@ Do:
 
 
 == Changelog ==
+
+= 3.0.5 (2019-04-11) =
+* Bugfix: Allow creating users with empty emails since WordPress supports it
 
 = 3.0.4 (2015-07-14) =
 * Change: Don't attempt to remap (even if only briefly) the email address for user updates when the email address hasn't been changed
@@ -342,6 +345,9 @@ Do:
 
 
 == Upgrade Notice ==
+
+= 3.0.5 =
+Minor bugfix: Allow creating users with empty emails since WordPress supports it
 
 = 3.0.4 =
 Minor update: Change to prevent the plugin from doing anything for user updates when the email address doesn't change (reduces processing and potential for conflicts)

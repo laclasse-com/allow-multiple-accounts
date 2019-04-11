@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Allow Multiple Accounts
- * Version:     3.0.4
+ * Version:     3.0.5
  * Plugin URI:  http://coffee2code.com/wp-plugins/allow-multiple-accounts/
  * Author:      Scott Reilly
  * Author URI:  http://coffee2code.com/
@@ -11,7 +11,7 @@
  * License URI: http://www.gnu.org/licenses/gpl-2.0.html
  * Description: Allow multiple user accounts to be created, registered, and updated having the same email address.
  *
- * Compatible with WordPress 3.6 through 4.2+.
+ * Compatible with WordPress 3.6 through 5.1+.
  *
  * =>> Read the accompanying readme.txt file for instructions and documentation.
  * =>> Also, visit the plugin's homepage for additional information and updates.
@@ -19,7 +19,7 @@
  *
  * @package Allow_Multiple_Accounts
  * @author  Scott Reilly
- * @version 3.0.4
+ * @version 3.0.5
  */
 
 /*
@@ -134,7 +134,7 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_039 {
 	 * Constructor.
 	 */
 	protected function __construct() {
-		parent::__construct( '3.0.4', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
+		parent::__construct( '3.0.5', 'allow-multiple-accounts', 'c2c', __FILE__, array( 'settings_page' => 'users' ) );
 		register_activation_hook( __FILE__, array( __CLASS__, 'activation' ) );
 
 		return self::$instance = $this;
@@ -266,7 +266,11 @@ class c2c_AllowMultipleAccounts extends C2C_Plugin_039 {
 	 * @return string
 	 */
 	public function hack_pre_user_email( $email ) {
-		if ( ! is_email( $email ) ) {
+		/*
+		 * An empty string is a valid value for an email in Wordpress
+		 * so it should be allowed in Multiple account as well
+		 */
+		if ( ( isset( $email ) && $email !== '' ) && ! is_email( $email ) ) {
 			return;
 		}
 

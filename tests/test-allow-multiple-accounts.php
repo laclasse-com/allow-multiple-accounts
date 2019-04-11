@@ -60,12 +60,19 @@ class Allow_Multiple_Accounts_Test extends WP_UnitTestCase {
 	}
 
 	function test_version() {
-		$this->assertEquals( '3.0.4', c2c_AllowMultipleAccounts::get_instance()->version() );
+		$this->assertEquals( '3.0.5', c2c_AllowMultipleAccounts::get_instance()->version() );
 	}
 
 	function test_instance_object_is_returned() {
 		$this->assertTrue( is_a( c2c_AllowMultipleAccounts::get_instance(), 'c2c_AllowMultipleAccounts' ) );
 	}
+
+
+	function test_wp_create_user_with_empty_email() {
+		$user_with_empty_mail = wp_create_user( 'bbb', 'password', '' );
+		$this->assertFalse( is_wp_error( $user_with_empty_mail ) );
+	}
+
 
 	/*
 	 * c2c_count_multiple_accounts() / $obj->count_multiple_accounts()
